@@ -21,3 +21,4 @@ res/
 src/test/
 target/
 .idea/
+log/

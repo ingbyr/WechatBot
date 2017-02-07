@@ -1,6 +1,6 @@
 package wechatAPI;
 
-import okhttp3.OkHttpClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created on 17-2-6.
@@ -19,15 +21,25 @@ import java.util.Date;
  * @version 1
  */
 public class IngBot {
+    // todo 终端日志颜色区分
     private static Logger log = LoggerFactory.getLogger(IngBot.class);
+    private static ObjectMapper mapper = new ObjectMapper();
 
-    private final OkHttpClient client = new OkHttpClient();
+    // 状态码
+    private static final String SUCCESS = "200";
+    private static final String SCANED = "201";
+    private static final String TIMEOUT = "408";
 
     // 登陆参数
     private String loginUrl;
-    private long standTime;
     private String uuid;
     private String qrcodeUrl;
+    private String redirectUrl;
+    private String baseUrl;
+    private String baseRequestContent;
+
+    //
+    private Map initData;
 
     public IngBot() {
         //　避免SSL报错
@@ -35,15 +47,16 @@ public class IngBot {
 
         this.loginUrl = "https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=zh_CN&_=";
         Date date = new Date();
-        this.standTime = date.getTime();
         this.uuid = "";
 
         this.qrcodeUrl = "https://login.weixin.qq.com/qrcode/";
+        this.baseUrl = "https://wx.qq.com/cgi-bin/mmwebwx-bin/";
+        this.initData = null;
     }
 
 
     public void getUuid() throws IOException {
-        loginUrl = loginUrl + standTime;
+        loginUrl = loginUrl + new Date().getTime();
         log.info(loginUrl);
         Response response = NetUtils.request(loginUrl);
         if (response.isSuccessful()) {
@@ -52,8 +65,8 @@ public class IngBot {
             String code = StringUtils.substringBetween(res, "window.QRLogin.code = ", ";");
             uuid = StringUtils.substringBetween(res, "window.QRLogin.uuid = \"", "\";");
 
-            log.info("window.QRLogin.code = " + code);
-            log.info("window.QRLogin.uuid = " + uuid);
+            log.debug("window.QRLogin.code = " + code);
+            log.debug("window.QRLogin.uuid = " + uuid);
         }
     }
 
@@ -70,29 +83,97 @@ public class IngBot {
         desktop.open(new File(imageUrl));
     }
 
+
     public void waitForLogin() throws IOException, InterruptedException {
+        log.info("请扫描二维码登陆微信");
         String url = StringUtils.join("https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=", uuid, "&tip=1&_=", new Date().getTime());
-        log.debug("wait for login url: " + url);
+        log.debug("login url: " + url);
         while (true) {
             Response response = NetUtils.request(url);
             String res = response.body().string();
             log.debug("response: " + res);
-            if (StringUtils.equals(res, "window.code=201;"))
-                log.info("请在手机上确认登陆");
-            if (StringUtils.startsWith(res, "window.redirect_uri")) {
-                log.info("登陆成功");
-                break;
+
+            // 登陆过程中
+            if (StringUtils.startsWith(res, "window.code=")) {
+                String code = StringUtils.substringBetween(res, "window.code=", ";");
+                log.debug("code: " + code);
+                if (StringUtils.equals(code, SUCCESS)) {
+                    log.info("登陆成功");
+                    response = NetUtils.request(url);
+                    res = response.body().string();
+                    redirectUrl = StringUtils.substringBetween(res, "window.redirect_uri=\"", "\";");
+                    if (StringUtils.isNotEmpty(redirectUrl)) {
+                        log.debug("redirectUrl: " + redirectUrl);
+                        break;
+                    }
+                } else if (StringUtils.equals(code, SCANED))
+                    log.info("请点击确认按钮");
+                else if (StringUtils.equals(code, TIMEOUT)) {
+                    log.info("登陆超时");
+                    System.exit(-1);
+                } else {
+                    log.info("未知错误");
+                    log.error(res);
+                    System.exit(-1);
+                }
             }
+
+            //　轮询时间　1s
             Thread.sleep(1000);
         }
     }
 
+    public void login() throws IOException {
+        if (redirectUrl.length() < 4) {
+            log.info("登陆失败");
+            System.exit(-1);
+        }
+        //　获取uin和sid
+        redirectUrl += "&fun=new";
+
+        Response response = NetUtils.request(redirectUrl);
+        String data = response.body().string();
+        log.debug("data: " + data);
+        initData = DomUtils.parseInitData(data);
+
+        // 组装请求body
+        Map requestData = new HashMap();
+        requestData.put("Uin", initData.get("wxuin"));
+        requestData.put("Sid", initData.get("wxsid"));
+        requestData.put("Skey", initData.get("skey"));
+        requestData.put("DeviceID", initData.get("deviceID"));
+
+        Map finalData = new HashMap();
+        finalData.put("BaseRequest", requestData);
+
+        // 转换为json格式
+        baseRequestContent = mapper.writeValueAsString(finalData);
+    }
+
+    public void init() throws IOException {
+        String url = baseUrl + "/webwxinit?r=" + (new Date().getTime()) + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
+        log.debug("url: " + url);
+        log.debug("baseRequestContent " + baseRequestContent);
+        Response response = NetUtils.requestWithJson(url, baseRequestContent);
+        byte[] data = response.body().bytes();
+        FileOutputStream fos = new FileOutputStream(System.getProperty("user.dir") + "/res/temp.json");
+        fos.write(data);
+        fos.close();
+    }
+
+    /**
+     * 流程测试
+     *
+     * @param args
+     */
     public static void main(String[] args) {
         IngBot bot = new IngBot();
         try {
             bot.getUuid();
             bot.generateQrcode();
             bot.waitForLogin();
+            bot.login();
+            bot.init();
         } catch (Exception e) {
             log.error(e.toString());
         }
