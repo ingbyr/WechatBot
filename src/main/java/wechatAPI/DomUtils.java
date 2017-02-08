@@ -21,9 +21,9 @@ import java.util.concurrent.ThreadLocalRandom;
 public class DomUtils {
     private static final Logger log = LoggerFactory.getLogger(DomUtils.class);
 
-    public static Map parseInitData(String data) {
+    public static Map<String, String> parseInitData(String data) {
         try {
-            Map ussData = new HashMap();
+            Map<String, String> ussData = new HashMap<>();
             Document document = DocumentHelper.parseText(data);
             Element root = document.getRootElement();
             Iterator iter = root.elementIterator();

@@ -39,19 +39,21 @@ public class IngBot {
     private String baseRequestContent;
 
     //
-    private Map initData;
+    private Map<String, String> initData;
+    private Map<String, String> baseRequest;
 
     public IngBot() {
         //　避免SSL报错
         System.setProperty("jsse.enableSNIExtension", "false");
 
         this.loginUrl = "https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=zh_CN&_=";
-        Date date = new Date();
         this.uuid = "";
 
         this.qrcodeUrl = "https://login.weixin.qq.com/qrcode/";
-        this.baseUrl = "https://wx.qq.com/cgi-bin/mmwebwx-bin/";
-        this.initData = null;
+        this.baseUrl = "https://wx.qq.com/cgi-bin/mmwebwx-bin";
+        this.initData = new HashMap<>();
+        this.baseRequest = new HashMap<>();
+        this.baseRequestContent = "";
     }
 
 
@@ -137,28 +139,41 @@ public class IngBot {
         initData = DomUtils.parseInitData(data);
 
         // 组装请求body
-        Map requestData = new HashMap();
-        requestData.put("Uin", initData.get("wxuin"));
-        requestData.put("Sid", initData.get("wxsid"));
-        requestData.put("Skey", initData.get("skey"));
-        requestData.put("DeviceID", initData.get("deviceID"));
+        baseRequest.put("Uin", initData.get("wxuin"));
+        baseRequest.put("Sid", initData.get("wxsid"));
+        baseRequest.put("Skey", initData.get("skey"));
+        baseRequest.put("DeviceID", initData.get("deviceID"));
 
-        Map finalData = new HashMap();
-        finalData.put("BaseRequest", requestData);
+        Map<String, Map> tempData = new HashMap<>();
+        tempData.put("BaseRequest", baseRequest);
+        log.debug(tempData.toString());
 
         // 转换为json格式
-        baseRequestContent = mapper.writeValueAsString(finalData);
+        baseRequestContent = mapper.writeValueAsString(tempData);
     }
 
     public void init() throws IOException {
         String url = baseUrl + "/webwxinit?r=" + (new Date().getTime()) + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
         log.debug("url: " + url);
         log.debug("baseRequestContent " + baseRequestContent);
+
         Response response = NetUtils.requestWithJson(url, baseRequestContent);
+
+        // 保存json数据到文件temp.json
         byte[] data = response.body().bytes();
-        FileOutputStream fos = new FileOutputStream(System.getProperty("user.dir") + "/res/temp.json");
-        fos.write(data);
-        fos.close();
+        try(FileOutputStream fos = new FileOutputStream(System.getProperty("user.dir") + "/res/temp.json")) {
+            fos.write(data);
+        }
+
+    }
+
+
+    public void statusNotify() {
+        String url = baseUrl + "/webwxstatusnotify?lang=zh_CN&pass_ticket=" + initData.get("pass_ticket");
+        Map<String, Object> tempData = new HashMap<>();
+        tempData.put("BaseRequest", baseRequest);
+        tempData.put("Code", 3);
+        tempData.put("FromUserName", null);
     }
 
     /**
