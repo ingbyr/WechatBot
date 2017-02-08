@@ -1,5 +1,6 @@
 package wechatAPI;
 
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,6 +16,6 @@ public class TempTest {
     private static final Logger log = LoggerFactory.getLogger(TempTest.class);
 
     public static void main(String[] args) throws IOException {
-        
+
     }
 }

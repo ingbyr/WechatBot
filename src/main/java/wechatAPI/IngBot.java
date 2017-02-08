@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -24,13 +25,14 @@ public class IngBot {
     // todo 终端日志颜色区分
     private static Logger log = LoggerFactory.getLogger(IngBot.class);
     private static ObjectMapper mapper = new ObjectMapper();
+    private static Date date = new Date();
 
     // 状态码
     private static final String SUCCESS = "200";
     private static final String SCANED = "201";
     private static final String TIMEOUT = "408";
 
-    // 登陆参数
+    // 参数
     private String loginUrl;
     private String uuid;
     private String qrcodeUrl;
@@ -41,6 +43,8 @@ public class IngBot {
     //
     private Map<String, String> initData;
     private Map<String, String> baseRequest;
+    private LinkedHashMap syncKey;
+    private LinkedHashMap myAccount;
 
     public IngBot() {
         //　避免SSL报错
@@ -54,11 +58,13 @@ public class IngBot {
         this.initData = new HashMap<>();
         this.baseRequest = new HashMap<>();
         this.baseRequestContent = "";
+        this.syncKey = null;
+        this.myAccount = null;
     }
 
 
     public void getUuid() throws IOException {
-        loginUrl = loginUrl + new Date().getTime();
+        loginUrl = loginUrl + date.getTime();
         log.info(loginUrl);
         Response response = NetUtils.request(loginUrl);
         if (response.isSuccessful()) {
@@ -88,7 +94,7 @@ public class IngBot {
 
     public void waitForLogin() throws IOException, InterruptedException {
         log.info("请扫描二维码登陆微信");
-        String url = StringUtils.join("https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=", uuid, "&tip=1&_=", new Date().getTime());
+        String url = StringUtils.join("https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=", uuid, "&tip=1&_=", date.getTime());
         log.debug("login url: " + url);
         while (true) {
             Response response = NetUtils.request(url);
@@ -153,27 +159,38 @@ public class IngBot {
     }
 
     public void init() throws IOException {
-        String url = baseUrl + "/webwxinit?r=" + (new Date().getTime()) + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
+        String url = baseUrl + "/webwxinit?r=" + (date.getTime()) + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
         log.debug("url: " + url);
         log.debug("baseRequestContent " + baseRequestContent);
 
         Response response = NetUtils.requestWithJson(url, baseRequestContent);
 
         // 保存json数据到文件temp.json
+        String path = System.getProperty("user.dir") + "/res/init.json";
+
         byte[] data = response.body().bytes();
-        try(FileOutputStream fos = new FileOutputStream(System.getProperty("user.dir") + "/res/temp.json")) {
+        try (FileOutputStream fos = new FileOutputStream(path)) {
             fos.write(data);
         }
 
+        Map map = mapper.readValue(new File(path), Map.class);
+        syncKey = (LinkedHashMap) map.get("SyncKey");
+        myAccount = (LinkedHashMap) map.get("User");
+        log.debug("syncKey: " + syncKey);
+        log.debug("User: " + myAccount);
     }
 
 
-    public void statusNotify() {
+    public void statusNotify() throws IOException {
         String url = baseUrl + "/webwxstatusnotify?lang=zh_CN&pass_ticket=" + initData.get("pass_ticket");
         Map<String, Object> tempData = new HashMap<>();
         tempData.put("BaseRequest", baseRequest);
         tempData.put("Code", 3);
-        tempData.put("FromUserName", null);
+        tempData.put("FromUserName", myAccount.get("UserName"));
+        tempData.put("ToUserName", myAccount.get("UserName"));
+        tempData.put("ClientMsgId", date.getTime());
+        Response response = NetUtils.requestWithJson(url, mapper.writeValueAsString(tempData));
+        log.debug("response" + response.body().string());
     }
 
     /**
@@ -189,6 +206,7 @@ public class IngBot {
             bot.waitForLogin();
             bot.login();
             bot.init();
+            bot.statusNotify();
         } catch (Exception e) {
             log.error(e.toString());
         }
