@@ -32,6 +32,8 @@ public class IngBot {
     private static final String SCANED = "201";
     private static final String TIMEOUT = "408";
 
+    private boolean isBigContact = false;
+
     // 参数
     private String loginUrl;
     private String uuid;
@@ -167,11 +169,7 @@ public class IngBot {
 
         // 保存json数据到文件temp.json
         String path = System.getProperty("user.dir") + "/res/init.json";
-
-        byte[] data = response.body().bytes();
-        try (FileOutputStream fos = new FileOutputStream(path)) {
-            fos.write(data);
-        }
+        NetUtils.writeToFile(path, response);
 
         Map map = mapper.readValue(new File(path), Map.class);
         syncKey = (LinkedHashMap) map.get("SyncKey");
@@ -179,7 +177,6 @@ public class IngBot {
         log.debug("syncKey: " + syncKey);
         log.debug("User: " + myAccount);
     }
-
 
     public void statusNotify() throws IOException {
         String url = baseUrl + "/webwxstatusnotify?lang=zh_CN&pass_ticket=" + initData.get("pass_ticket");
@@ -190,7 +187,26 @@ public class IngBot {
         tempData.put("ToUserName", myAccount.get("UserName"));
         tempData.put("ClientMsgId", date.getTime());
         Response response = NetUtils.requestWithJson(url, mapper.writeValueAsString(tempData));
-        log.debug("response" + response.body().string());
+        log.debug("response: " + response.body().string());
+    }
+
+    public void getContact() {
+        // 如果通讯录联系人过多，这里会直接获取失败
+        if (isBigContact)
+            return;
+
+        String url = baseUrl + "/webwxgetcontact?pass_ticket=" + initData.get("pass_ticket")
+                + "&skey=" + initData.get("skey") + "&r=" + date.getTime();
+        log.debug("url: " + url);
+        try {
+            Response response = NetUtils.requestWithJson(url, "{}");
+            String path = System.getProperty("user.dir") + "/res/contacts.json";
+            NetUtils.writeToFile(path, response);
+        } catch (Exception e) {
+            isBigContact = true;
+            log.info("联系人数量过多，尝试重新获取中");
+            log.error(e.toString());
+        }
     }
 
     /**
@@ -207,6 +223,7 @@ public class IngBot {
             bot.login();
             bot.init();
             bot.statusNotify();
+            bot.getContact();
         } catch (Exception e) {
             log.error(e.toString());
         }
