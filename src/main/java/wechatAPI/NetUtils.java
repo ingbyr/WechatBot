@@ -29,10 +29,6 @@ public class NetUtils {
                 @Override
                 public void saveFromResponse(HttpUrl httpUrl, List<Cookie> list) {
                     localCookie = list;
-                    log.debug("COOKIE:\n");
-                    for (Cookie cookie : list) {
-                        log.debug(cookie.toString());
-                    }
                 }
 
                 @Override

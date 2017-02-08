@@ -10,10 +10,8 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
+import java.util.List;
 
 /**
  * Created on 17-2-6.
@@ -35,33 +33,32 @@ public class IngBot {
     private boolean isBigContact = false;
 
     // 参数
-    private String loginUrl;
-    private String uuid;
-    private String qrcodeUrl;
-    private String redirectUrl;
-    private String baseUrl;
-    private String baseRequestContent;
+    private String loginUrl = "";
+    private String uuid = "";
+    private String qrcodeUrl = "";
+    private String redirectUrl = "";
+    private String baseUrl = "";
+    private String baseRequestContent = "";
 
-    //
-    private Map<String, String> initData;
-    private Map<String, String> baseRequest;
+    private Map<String, String> initData = new HashMap<>();
+    private Map<String, String> baseRequest = new HashMap<>();
     private LinkedHashMap syncKey;
-    private LinkedHashMap myAccount;
+    private LinkedHashMap myAccount; // 当前账户
+    private ArrayList memberList; // 联系人, 公众号, 群组, 特殊账号
+    private HashMap groupMembers; // 所有群组的成员 {'group_id1': [member1, member2, ...], ...}
+    private ArrayList contactList; // 联系人列表
+    private ArrayList publicList; // 公众账号列表
+    private ArrayList specialList; // 特殊账号列表
+    private ArrayList groupList; // 群聊列表
+    private HashMap accountInfo; // 所有账户 {'group_member':{'id':{'type':'group_member', 'info':{}}, ...}, 'normal_member':{'id':{}, ...}}
 
     public IngBot() {
         //　避免SSL报错
         System.setProperty("jsse.enableSNIExtension", "false");
 
         this.loginUrl = "https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=zh_CN&_=";
-        this.uuid = "";
-
         this.qrcodeUrl = "https://login.weixin.qq.com/qrcode/";
         this.baseUrl = "https://wx.qq.com/cgi-bin/mmwebwx-bin";
-        this.initData = new HashMap<>();
-        this.baseRequest = new HashMap<>();
-        this.baseRequestContent = "";
-        this.syncKey = null;
-        this.myAccount = null;
     }
 
 
@@ -191,7 +188,7 @@ public class IngBot {
     }
 
     public void getContact() {
-        // 如果通讯录联系人过多，这里会直接获取失败
+        // todo 如果通讯录联系人过多，这里会直接获取失败
         if (isBigContact)
             return;
 
@@ -202,6 +199,28 @@ public class IngBot {
             Response response = NetUtils.requestWithJson(url, "{}");
             String path = System.getProperty("user.dir") + "/res/contacts.json";
             NetUtils.writeToFile(path, response);
+
+            // 读取contacts
+            Map map = mapper.readValue(new File(path), Map.class);
+            memberList = (ArrayList) map.get("MemberList");
+            log.debug("memberList:\n" + memberList);
+
+            // 特殊用户名单
+            String[] tempUserData = {"newsapp", "fmessage", "filehelper", "weibo", "qqmail",
+                    "fmessage", "tmessage", "qmessage", "qqsync", "floatbottle",
+                    "lbsapp", "shakeapp", "medianote", "qqfriend", "readerapp",
+                    "blogapp", "facebookapp", "masssendapp", "meishiapp",
+                    "feedsapp", "voip", "blogappweixin", "weixin", "brandsessionholder",
+                    "weixinreminder", "wxid_novlwrv3lqwv11", "gh_22b87fa7cb3c",
+                    "officialaccounts", "notification_messages", "wxid_novlwrv3lqwv11",
+                    "gh_22b87fa7cb3c", "wxitil", "userexperience_alarm", "notification_messages"};
+            List<String> specialUsers = new ArrayList<>();
+            for (String user : tempUserData) {
+                specialUsers.add(user);
+            }
+
+            // todo 用户分类
+
         } catch (Exception e) {
             isBigContact = true;
             log.info("联系人数量过多，尝试重新获取中");
