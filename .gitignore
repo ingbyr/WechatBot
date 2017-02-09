@@ -22,3 +22,5 @@ src/test/
 target/
 .idea/
 log/
+Temp*
+
