@@ -42,15 +42,16 @@ public class IngBot {
 
     private Map<String, String> initData = new HashMap<>();
     private Map<String, String> baseRequest = new HashMap<>();
-    private LinkedHashMap syncKey;
-    private LinkedHashMap myAccount; // 当前账户
-    private ArrayList memberList; // 联系人, 公众号, 群组, 特殊账号
-    private HashMap groupMembers; // 所有群组的成员 {'group_id1': [member1, member2, ...], ...}
-    private ArrayList contactList; // 联系人列表
-    private ArrayList publicList; // 公众账号列表
-    private ArrayList specialList; // 特殊账号列表
-    private ArrayList groupList; // 群聊列表
-    private HashMap accountInfo; // 所有账户 {'group_member':{'id':{'type':'group_member', 'info':{}}, ...}, 'normal_member':{'id':{}, ...}}
+    private Map<String, Object> syncKey;
+    private Map<String, Object> myAccount = new HashMap<>(); // 当前账户
+    private List<HashMap<String, Object>> memberList = new ArrayList<>(); // 联系人, 公众号, 群组, 特殊账号
+    private List<HashMap<String, Object>> contactList = new ArrayList<>(); // 联系人列表
+    private List<HashMap<String, Object>> publicList = new ArrayList<>(); // 公众账号列表
+    private List<HashMap<String, Object>> specialList = new ArrayList<>(); // 特殊账号列表
+    private List<HashMap<String, Object>> groupList = new ArrayList<>(); // 群聊列表
+
+//    private HashMap groupMembers; // 所有群组的成员 {'group_id1': [member1, member2, ...], ...}
+//    private HashMap accountInfo; // 所有账户 {'group_member':{'id':{'type':'group_member', 'info':{}}, ...}, 'normal_member':{'id':{}, ...}}
 
     public IngBot() {
         //　避免SSL报错
@@ -169,10 +170,10 @@ public class IngBot {
         NetUtils.writeToFile(path, response);
 
         Map map = mapper.readValue(new File(path), Map.class);
-        syncKey = (LinkedHashMap) map.get("SyncKey");
-        myAccount = (LinkedHashMap) map.get("User");
+        syncKey = (Map<String, Object>) map.get("SyncKey");
+        myAccount = (Map<String, Object>) map.get("User");
         log.debug("syncKey: " + syncKey);
-        log.debug("User: " + myAccount);
+        log.debug("myAccount: " + myAccount);
     }
 
     public void statusNotify() throws IOException {
@@ -187,7 +188,7 @@ public class IngBot {
         log.debug("response: " + response.body().string());
     }
 
-    public void getContact() {
+    public void getContact() throws IOException {
         // todo 如果通讯录联系人过多，这里会直接获取失败
         if (isBigContact)
             return;
@@ -195,36 +196,52 @@ public class IngBot {
         String url = baseUrl + "/webwxgetcontact?pass_ticket=" + initData.get("pass_ticket")
                 + "&skey=" + initData.get("skey") + "&r=" + date.getTime();
         log.debug("url: " + url);
+
+        // json保存本地
+        String path = System.getProperty("user.dir") + "/res/contacts.json";
+
         try {
             Response response = NetUtils.requestWithJson(url, "{}");
-            String path = System.getProperty("user.dir") + "/res/contacts.json";
             NetUtils.writeToFile(path, response);
-
-            // 读取contacts
-            Map map = mapper.readValue(new File(path), Map.class);
-            memberList = (ArrayList) map.get("MemberList");
-            log.debug("memberList:\n" + memberList);
-
-            // 特殊用户名单
-            String[] tempUserData = {"newsapp", "fmessage", "filehelper", "weibo", "qqmail",
-                    "fmessage", "tmessage", "qmessage", "qqsync", "floatbottle",
-                    "lbsapp", "shakeapp", "medianote", "qqfriend", "readerapp",
-                    "blogapp", "facebookapp", "masssendapp", "meishiapp",
-                    "feedsapp", "voip", "blogappweixin", "weixin", "brandsessionholder",
-                    "weixinreminder", "wxid_novlwrv3lqwv11", "gh_22b87fa7cb3c",
-                    "officialaccounts", "notification_messages", "wxid_novlwrv3lqwv11",
-                    "gh_22b87fa7cb3c", "wxitil", "userexperience_alarm", "notification_messages"};
-            List<String> specialUsers = new ArrayList<>();
-            for (String user : tempUserData) {
-                specialUsers.add(user);
-            }
-
-            // todo 用户分类
-
         } catch (Exception e) {
             isBigContact = true;
             log.info("联系人数量过多，尝试重新获取中");
             log.error(e.toString());
+        }
+
+        // 读取contacts
+        Map map = mapper.readValue(new File(path), Map.class);
+        memberList = (ArrayList<HashMap<String, Object>>) map.get("MemberList");
+
+        // 特殊用户名单
+        List<String> specialUsers = Arrays.asList("newsapp", "fmessage", "filehelper", "weibo", "qqmail",
+                "fmessage", "tmessage", "qmessage", "qqsync", "floatbottle",
+                "lbsapp", "shakeapp", "medianote", "qqfriend", "readerapp",
+                "blogapp", "facebookapp", "masssendapp", "meishiapp",
+                "feedsapp", "voip", "blogappweixin", "weixin", "brandsessionholder",
+                "weixinreminder", "wxid_novlwrv3lqwv11", "gh_22b87fa7cb3c",
+                "officialaccounts", "notification_messages", "wxid_novlwrv3lqwv11",
+                "gh_22b87fa7cb3c", "wxitil", "userexperience_alarm", "notification_messages");
+
+        for (HashMap<String, Object> contact : memberList) {
+            if ((Integer.parseInt(contact.get("VerifyFlag").toString()) & 8) != 0) {
+                // 公众号
+                publicList.add(contact);
+                log.debug("公众号: " + contact.get("NickName"));
+            } else if (specialUsers.contains(contact.get("UserName").toString())) {
+                // 特殊账户
+                specialList.add(contact);
+            } else if (contact.get("UserName").toString().startsWith("@@")) {
+                // 群聊
+                groupList.add(contact);
+                log.debug("群聊: " + contact.get("NickName"));
+            } else if (StringUtils.equals(contact.get("UserName").toString(), myAccount.get("UserName").toString())) {
+                // 自己
+                log.debug("欢迎:　" + contact.get("NickName"));
+            } else {
+                contactList.add(contact);
+                log.debug("好友: " + contact.get("NickName"));
+            }
         }
     }
 
@@ -233,18 +250,15 @@ public class IngBot {
      *
      * @param args
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, InterruptedException {
         IngBot bot = new IngBot();
-        try {
-            bot.getUuid();
-            bot.generateQrcode();
-            bot.waitForLogin();
-            bot.login();
-            bot.init();
-            bot.statusNotify();
-            bot.getContact();
-        } catch (Exception e) {
-            log.error(e.toString());
-        }
+        bot.getUuid();
+        bot.generateQrcode();
+        bot.waitForLogin();
+        bot.login();
+        bot.init();
+        bot.statusNotify();
+        bot.getContact();
+
     }
 }

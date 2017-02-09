@@ -4,8 +4,6 @@ package wechatAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 /**
  * Created on 17-2-6.
  *
@@ -15,7 +13,7 @@ import java.io.IOException;
 public class TempTest {
     private static final Logger log = LoggerFactory.getLogger(TempTest.class);
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) throws Exception {
 
     }
 }

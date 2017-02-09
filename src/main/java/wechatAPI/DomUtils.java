@@ -46,8 +46,4 @@ public class DomUtils {
         }
         return null;
     }
-
-    public static void main(String[] args) {
-        parseInitData("ing");
-    }
 }
