@@ -42,16 +42,33 @@ public class NetUtils {
     private static final String USER_AGENT = "User-Agent";
     private static final String USER_AGENT_CONTENT = "Mozilla/5.0 (X11; Linux i686; U;) Gecko/20070322 Kazehakase/0.4.5";
 
-    public static Response request(String url) throws IOException {
+    public static String request(String url) throws IOException {
         Request request = new Request.Builder()
                 .addHeader(USER_AGENT, USER_AGENT_CONTENT)
                 .url(url)
                 .build();
-        Response response = client.newCall(request).execute();
-        return response;
+        try (ResponseBody responseBody = client.newCall(request).execute().body()) {
+            return responseBody.string();
+        }catch (Exception e){
+            log.error(e.toString());
+        }
+        return null;
     }
 
-    public static Response requestWithJson(String url, String data) throws IOException {
+    public static byte[] requestForBytes(String url) throws IOException {
+        Request request = new Request.Builder()
+                .addHeader(USER_AGENT, USER_AGENT_CONTENT)
+                .url(url)
+                .build();
+        try (ResponseBody responseBody = client.newCall(request).execute().body()) {
+            return responseBody.bytes();
+        }catch (Exception e){
+            log.error(e.toString());
+        }
+        return null;
+    }
+
+    public static String requestWithJson(String url, String data) throws IOException {
         MediaType JSON = MediaType.parse("application/json; charset=utf-8");
         RequestBody body = RequestBody.create(JSON, data);
         Request request = new Request.Builder()
@@ -59,12 +76,34 @@ public class NetUtils {
                 .url(url)
                 .post(body)
                 .build();
-        Response response = client.newCall(request).execute();
-        return response;
+        try (ResponseBody responseBody = client.newCall(request).execute().body()) {
+            return responseBody.string();
+        } catch (Exception e) {
+            log.error(e.toString());
+        }
+        return null;
+
+//        Response response = client.newCall(request).execute();
+//        return response;
     }
 
-    public static void writeToFile(String path, Response response) throws IOException {
-        byte[] data = response.body().bytes();
+    public static byte[] requestWithJsonForBytes(String url, String data) throws IOException {
+        MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+        RequestBody body = RequestBody.create(JSON, data);
+        Request request = new Request.Builder()
+                .addHeader(USER_AGENT, USER_AGENT_CONTENT)
+                .url(url)
+                .post(body)
+                .build();
+        try (ResponseBody responseBody = client.newCall(request).execute().body()) {
+            return responseBody.bytes();
+        } catch (Exception e) {
+            log.error(e.toString());
+        }
+        return null;
+    }
+
+    public static void writeToFile(String path, byte[] data) throws IOException {
         try (FileOutputStream fos = new FileOutputStream(path)) {
             fos.write(data);
         }

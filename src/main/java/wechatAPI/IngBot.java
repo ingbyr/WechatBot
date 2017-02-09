@@ -1,16 +1,13 @@
 package wechatAPI;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import okhttp3.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.ConnectException;
 import java.util.*;
 import java.util.List;
 
@@ -67,54 +64,44 @@ public class IngBot {
         this.baseHost = "wx.qq.com";
     }
 
-
     public void getUuid() throws IOException {
         loginUrl = loginUrl + date.getTime();
         log.info(loginUrl);
-        Response response = NetUtils.request(loginUrl);
-        if (response.isSuccessful()) {
-            // e.g: window.QRLogin.code = 200; window.QRLogin.uuid = "wejZcbBd2w==";
-            String res = response.body().string();
-            String code = StringUtils.substringBetween(res, "window.QRLogin.code = ", ";");
-            uuid = StringUtils.substringBetween(res, "window.QRLogin.uuid = \"", "\";");
+        String response = NetUtils.request(loginUrl);
+        // e.g: window.QRLogin.code = 200; window.QRLogin.uuid = "wejZcbBd2w==";
+        String code = StringUtils.substringBetween(response, "window.QRLogin.code = ", ";");
+        uuid = StringUtils.substringBetween(response, "window.QRLogin.uuid = \"", "\";");
 
-            log.debug("window.QRLogin.code = " + code);
-            log.debug("window.QRLogin.uuid = " + uuid);
-        }
+        log.debug("window.QRLogin.code = " + code);
+        log.debug("window.QRLogin.uuid = " + uuid);
     }
 
     public void generateQrcode() throws IOException {
         qrcodeUrl += uuid;
         log.debug("qrcode url: " + qrcodeUrl);
-        Response response = NetUtils.request(qrcodeUrl);
-        byte[] qrcodeDate = response.body().bytes();
+        byte[] qrcodeDate = NetUtils.requestForBytes(qrcodeUrl);
         String imageUrl = System.getProperty("user.dir") + "/res/temp.png";
-        FileOutputStream fos = new FileOutputStream(imageUrl);
-        fos.write(qrcodeDate);
-        fos.close();
+        NetUtils.writeToFile(imageUrl, qrcodeDate);
         Desktop desktop = Desktop.getDesktop();
         desktop.open(new File(imageUrl));
     }
-
 
     public void waitForLogin() throws IOException, InterruptedException {
         log.info("请扫描二维码登陆微信");
         String url = StringUtils.join("https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=", uuid, "&tip=1&_=", date.getTime());
         log.debug("login url: " + url);
         while (true) {
-            Response response = NetUtils.request(url);
-            String res = response.body().string();
-            log.debug("response: " + res);
+            String response = NetUtils.request(url);
+            log.debug("response: " + response);
 
             // 登陆过程中
-            if (StringUtils.startsWith(res, "window.code=")) {
-                String code = StringUtils.substringBetween(res, "window.code=", ";");
+            if (StringUtils.startsWith(response, "window.code=")) {
+                String code = StringUtils.substringBetween(response, "window.code=", ";");
                 log.debug("code: " + code);
                 if (StringUtils.equals(code, SUCCESS)) {
                     log.info("登陆成功");
                     response = NetUtils.request(url);
-                    res = response.body().string();
-                    redirectUrl = StringUtils.substringBetween(res, "window.redirect_uri=\"", "\";");
+                    redirectUrl = StringUtils.substringBetween(response, "window.redirect_uri=\"", "\";");
                     if (StringUtils.isNotEmpty(redirectUrl)) {
                         log.debug("redirectUrl: " + redirectUrl);
                         break;
@@ -126,7 +113,7 @@ public class IngBot {
                     System.exit(-1);
                 } else {
                     log.info("未知错误");
-                    log.error(res);
+                    log.error(response);
                     System.exit(-1);
                 }
             }
@@ -144,10 +131,9 @@ public class IngBot {
         //　获取uin和sid
         redirectUrl += "&fun=new";
 
-        Response response = NetUtils.request(redirectUrl);
-        String data = response.body().string();
-        log.debug("data: " + data);
-        initData = BotUtils.parseInitData(data);
+        String response = NetUtils.request(redirectUrl);
+        log.debug("response: " + response);
+        initData = BotUtils.parseInitData(response);
 
         // 组装请求body
         baseRequest.put("Uin", initData.get("wxuin"));
@@ -168,7 +154,7 @@ public class IngBot {
         log.debug("url: " + url);
         log.debug("baseRequestContent " + baseRequestContent);
 
-        Response response = NetUtils.requestWithJson(url, baseRequestContent);
+        byte[] response = NetUtils.requestWithJsonForBytes(url, baseRequestContent);
 
         // 保存json数据到文件temp.json
         String path = System.getProperty("user.dir") + "/res/init.json";
@@ -215,7 +201,7 @@ public class IngBot {
         String path = System.getProperty("user.dir") + "/res/contacts.json";
 
         try {
-            Response response = NetUtils.requestWithJson(url, "{}");
+            byte[] response = NetUtils.requestWithJsonForBytes(url, "{}");
             NetUtils.writeToFile(path, response);
         } catch (Exception e) {
             isBigContact = true;
@@ -260,7 +246,7 @@ public class IngBot {
     }
 
     public void testSyncCheck() throws IOException {
-        // webpush2 Failed to connect to webpush2.wx.qq.com/222.221.5.252:443
+// webpush2 Failed to connect to webpush2.wx.qq.com/222.221.5.252:443
 //        String[] hosts = {"webpush.", "webpush2."};
 //        for (String host1 : hosts) {
 //            syncHost = host1 + baseHost;
@@ -283,16 +269,15 @@ public class IngBot {
 
         String url = "https://" + syncHost + "/cgi-bin/mmwebwx-bin/synccheck?" + NetUtils.getUrlParamsByMap(request, false);
         log.debug("url: " + url);
-        Response response = NetUtils.request(url);
-        String data = response.body().string();
-        log.debug("syncCheck response: " + data);
+        String response = NetUtils.request(url);
+        log.debug("syncCheck response: " + response);
 
-        String retcode = StringUtils.substringBetween(data, "retcode:\"", "\",");
-        String selector = StringUtils.substringBetween(data, "selector:\"", "\"}");
+        String retcode = StringUtils.substringBetween(response, "retcode:\"", "\",");
+        String selector = StringUtils.substringBetween(response, "selector:\"", "\"}");
         return new String[]{retcode, selector};
     }
 
-    public void sync() throws IOException {
+    public Map sync() throws IOException {
         String url = baseUrl + "/webwxsync?sid=" + initData.get("wxsid") + "&skey="
                 + initData.get("skey") + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
         log.debug("url: " + url);
@@ -301,8 +286,59 @@ public class IngBot {
         request.put("SyncKey", syncKey);
         request.put("rr", date.getTime());
         String requestContent = mapper.writeValueAsString(request);
-        Response response = NetUtils.requestWithJson(url, requestContent);
-        log.debug("msg: " + response.body().string());
+        String response = NetUtils.requestWithJson(url, requestContent);
+        Map dataMap = mapper.readValue(response, Map.class);
+        int ret = (int) ((Map<String, Object>) dataMap.get("BaseResponse")).get("Ret");
+        if (ret == 0) {
+            List<HashMap<String, Integer>> syncKeyList = (List<HashMap<String, Integer>>) ((Map<String, Object>) dataMap.get("SyncKey")).get("List");
+            syncKeyStr = BotUtils.genSyncStr(syncKeyList);
+            log.debug("syncKeyStr: " + syncKeyStr);
+        }
+        return dataMap;
+//        log.debug("msg: " + response.body().string());
+    }
+
+    public void procMsg() throws IOException, InterruptedException {
+        testSyncCheck();
+        String[] status;
+        while (true) {
+            try {
+                status = syncCheck();
+                if (StringUtils.equals(status[0], "1100")) {
+                    log.info("从微信客户端上登出");
+                    break;
+                } else if (StringUtils.equals(status[0], "1101")) {
+                    log.info("从其它设备上登了网页微信");
+                    break;
+                } else if (StringUtils.equals(status[0], "0")) {
+                    if (StringUtils.equals(status[1], "2")) {
+                        log.debug("有新消息");
+                        sync();
+                    } else if (StringUtils.equals(status[1], "3")) {
+                        log.debug("有新消息");
+                        sync();
+                    } else if (StringUtils.equals(status[1], "4")) {
+                        log.debug("通讯录更新");
+                        sync();
+                    } else if (StringUtils.equals(status[1], "6")) {
+                        log.debug("可能是红包");
+                        sync();
+                    } else if (StringUtils.equals(status[1], "7")) {
+                        log.debug("手机上操作了微信");
+                        sync();
+                    } else if (StringUtils.equals(status[1], "0")) {
+                        log.debug("无事件");
+                    } else {
+                        sync();
+                    }
+                } else {
+                    log.debug("未知的status");
+                    Thread.sleep(5000);
+                }
+            } catch (Exception e) {
+                log.error(e.toString());
+            }
+        }
     }
 
     /**
@@ -319,24 +355,6 @@ public class IngBot {
         bot.init();
         bot.statusNotify();
         bot.getContact();
-
-        try {
-            bot.testSyncCheck();
-        } catch (ConnectException e) {
-            log.error(e.toString());
-        }
-
-        String[] status;
-        while (true) {
-            try {
-                status = bot.syncCheck();
-                log.debug("status: " + Arrays.toString(status));
-                bot.sync();
-//                Thread.sleep(1000);
-            } catch (Exception e) {
-                Thread.sleep(10000);
-                log.debug(e.toString());
-            }
-        }
+        bot.procMsg();
     }
 }
