@@ -7,9 +7,7 @@ import org.dom4j.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -18,8 +16,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * @author ing
  * @version 1
  */
-public class DomUtils {
-    private static final Logger log = LoggerFactory.getLogger(DomUtils.class);
+public class BotUtils {
+    private static final Logger log = LoggerFactory.getLogger(BotUtils.class);
 
     public static Map<String, String> parseInitData(String data) {
         try {
@@ -45,5 +43,14 @@ public class DomUtils {
             log.error(e.toString());
         }
         return null;
+    }
+
+    public static String genSyncStr(List<HashMap<String, Integer>> keyValList) {
+        String syncKeyStr = "";
+        for (HashMap<String, Integer> keyVal : keyValList) {
+            syncKeyStr += keyVal.get("Key").toString() + "_" + keyVal.get("Val") + "|";
+        }
+        syncKeyStr = syncKeyStr.substring(0, syncKeyStr.length() - 1);
+        return syncKeyStr;
     }
 }

@@ -7,7 +7,9 @@ import org.slf4j.LoggerFactory;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -21,7 +23,7 @@ public class NetUtils {
     private static List<Cookie> localCookie = new ArrayList<>();
 
     private static final OkHttpClient client = new OkHttpClient.Builder()
-            .connectTimeout(24, TimeUnit.DAYS)
+            .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(5, TimeUnit.MINUTES)
             .writeTimeout(5, TimeUnit.MINUTES)
             .cookieJar(new CookieJar() {
@@ -58,8 +60,6 @@ public class NetUtils {
                 .post(body)
                 .build();
         Response response = client.newCall(request).execute();
-
-
         return response;
     }
 
@@ -68,5 +68,28 @@ public class NetUtils {
         try (FileOutputStream fos = new FileOutputStream(path)) {
             fos.write(data);
         }
+    }
+
+    public static String getUrlParamsByMap(Map<String, Object> map,
+                                           boolean isSort) {
+        if (map == null) {
+            return "";
+        }
+        StringBuffer sb = new StringBuffer();
+        List<String> keys = new ArrayList<String>(map.keySet());
+        if (isSort) {
+            Collections.sort(keys);
+        }
+        for (int i = 0; i < keys.size(); i++) {
+            String key = keys.get(i);
+            String value = map.get(key).toString();
+            sb.append(key + "=" + value);
+            sb.append("&");
+        }
+        String s = sb.toString();
+        if (s.endsWith("&")) {
+            s = s.substring(0, s.lastIndexOf("&"));
+        }
+        return s;
     }
 }

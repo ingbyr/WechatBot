@@ -10,6 +10,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.ConnectException;
 import java.util.*;
 import java.util.List;
 
@@ -38,11 +39,14 @@ public class IngBot {
     private String qrcodeUrl = "";
     private String redirectUrl = "";
     private String baseUrl = "";
+    private String baseHost = "";
     private String baseRequestContent = "";
+    private String syncKeyStr = "";
+    private String syncHost = "";
 
     private Map<String, String> initData = new HashMap<>();
     private Map<String, String> baseRequest = new HashMap<>();
-    private Map<String, Object> syncKey;
+    private Map<String, Object> syncKey = new HashMap<>();
     private Map<String, Object> myAccount = new HashMap<>(); // 当前账户
     private List<HashMap<String, Object>> memberList = new ArrayList<>(); // 联系人, 公众号, 群组, 特殊账号
     private List<HashMap<String, Object>> contactList = new ArrayList<>(); // 联系人列表
@@ -60,6 +64,7 @@ public class IngBot {
         this.loginUrl = "https://login.weixin.qq.com/jslogin?appid=wx782c26e4c19acffb&redirect_uri=https%3A%2F%2Fwx.qq.com%2Fcgi-bin%2Fmmwebwx-bin%2Fwebwxnewloginpage&fun=new&lang=zh_CN&_=";
         this.qrcodeUrl = "https://login.weixin.qq.com/qrcode/";
         this.baseUrl = "https://wx.qq.com/cgi-bin/mmwebwx-bin";
+        this.baseHost = "wx.qq.com";
     }
 
 
@@ -142,7 +147,7 @@ public class IngBot {
         Response response = NetUtils.request(redirectUrl);
         String data = response.body().string();
         log.debug("data: " + data);
-        initData = DomUtils.parseInitData(data);
+        initData = BotUtils.parseInitData(data);
 
         // 组装请求body
         baseRequest.put("Uin", initData.get("wxuin"));
@@ -172,7 +177,17 @@ public class IngBot {
         Map map = mapper.readValue(new File(path), Map.class);
         syncKey = (Map<String, Object>) map.get("SyncKey");
         myAccount = (Map<String, Object>) map.get("User");
+
         log.debug("syncKey: " + syncKey);
+
+        List<HashMap<String, Integer>> syncKeyList = (List<HashMap<String, Integer>>) syncKey.get("List");
+//        for (HashMap<String, Integer> keyVal : syncKeyList) {
+//            syncKeyStr += keyVal.get("Key").toString() + "_" + keyVal.get("Val") + "|";
+//        }
+//        syncKeyStr = syncKeyStr.substring(0, syncKeyStr.length() - 1);
+        syncKeyStr = BotUtils.genSyncStr(syncKeyList);
+
+        log.debug("syncKeyStr: " + syncKeyStr);
         log.debug("myAccount: " + myAccount);
     }
 
@@ -184,8 +199,7 @@ public class IngBot {
         tempData.put("FromUserName", myAccount.get("UserName"));
         tempData.put("ToUserName", myAccount.get("UserName"));
         tempData.put("ClientMsgId", date.getTime());
-        Response response = NetUtils.requestWithJson(url, mapper.writeValueAsString(tempData));
-        log.debug("response: " + response.body().string());
+        NetUtils.requestWithJson(url, mapper.writeValueAsString(tempData));
     }
 
     public void getContact() throws IOException {
@@ -245,6 +259,52 @@ public class IngBot {
         }
     }
 
+    public void testSyncCheck() throws IOException {
+        // webpush2 Failed to connect to webpush2.wx.qq.com/222.221.5.252:443
+//        String[] hosts = {"webpush.", "webpush2."};
+//        for (String host1 : hosts) {
+//            syncHost = host1 + baseHost;
+//            syncCheck();
+//        }
+
+        syncHost = "webpush." + baseHost;
+        syncCheck();
+    }
+
+    public String[] syncCheck() throws IOException {
+        Map<String, Object> request = new HashMap<>();
+        request.put("r", date.getTime());
+        request.put("sid", initData.get("wxsid"));
+        request.put("uin", initData.get("wxuin"));
+        request.put("skey", initData.get("skey"));
+        request.put("deviceid", initData.get("deviceID"));
+        request.put("synckey", syncKeyStr);
+        request.put("_", date.getTime());
+
+        String url = "https://" + syncHost + "/cgi-bin/mmwebwx-bin/synccheck?" + NetUtils.getUrlParamsByMap(request, false);
+        log.debug("url: " + url);
+        Response response = NetUtils.request(url);
+        String data = response.body().string();
+        log.debug("syncCheck response: " + data);
+
+        String retcode = StringUtils.substringBetween(data, "retcode:\"", "\",");
+        String selector = StringUtils.substringBetween(data, "selector:\"", "\"}");
+        return new String[]{retcode, selector};
+    }
+
+    public void sync() throws IOException {
+        String url = baseUrl + "/webwxsync?sid=" + initData.get("wxsid") + "&skey="
+                + initData.get("skey") + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
+        log.debug("url: " + url);
+        Map<String, Object> request = new HashMap<>();
+        request.put("BaseRequest", baseRequest);
+        request.put("SyncKey", syncKey);
+        request.put("rr", date.getTime());
+        String requestContent = mapper.writeValueAsString(request);
+        Response response = NetUtils.requestWithJson(url, requestContent);
+        log.debug("msg: " + response.body().string());
+    }
+
     /**
      * 流程测试
      *
@@ -260,5 +320,23 @@ public class IngBot {
         bot.statusNotify();
         bot.getContact();
 
+        try {
+            bot.testSyncCheck();
+        } catch (ConnectException e) {
+            log.error(e.toString());
+        }
+
+        String[] status;
+        while (true) {
+            try {
+                status = bot.syncCheck();
+                log.debug("status: " + Arrays.toString(status));
+                bot.sync();
+//                Thread.sleep(1000);
+            } catch (Exception e) {
+                Thread.sleep(10000);
+                log.debug(e.toString());
+            }
+        }
     }
 }
