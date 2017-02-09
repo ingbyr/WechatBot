@@ -51,6 +51,9 @@ public class IngBot {
     private List<HashMap<String, Object>> specialList = new ArrayList<>(); // 特殊账号列表
     private List<HashMap<String, Object>> groupList = new ArrayList<>(); // 群聊列表
 
+    // 消息相关
+    private String[] fullUserNameList = null;
+
 //    private HashMap groupMembers; // 所有群组的成员 {'group_id1': [member1, member2, ...], ...}
 //    private HashMap accountInfo; // 所有账户 {'group_member':{'id':{'type':'group_member', 'info':{}}, ...}, 'normal_member':{'id':{}, ...}}
 
@@ -294,8 +297,8 @@ public class IngBot {
             syncKeyStr = BotUtils.genSyncStr(syncKeyList);
             log.debug("syncKeyStr: " + syncKeyStr);
         }
+        log.debug("message: \n" + response);
         return dataMap;
-//        log.debug("msg: " + response.body().string());
     }
 
     public void procMsg() throws IOException, InterruptedException {
@@ -311,25 +314,26 @@ public class IngBot {
                     log.info("从其它设备上登了网页微信");
                     break;
                 } else if (StringUtils.equals(status[0], "0")) {
+                    Thread.sleep(1000);
                     if (StringUtils.equals(status[1], "2")) {
                         log.debug("有新消息");
-                        sync();
+                        handleMsg(sync());
                     } else if (StringUtils.equals(status[1], "3")) {
-                        log.debug("有新消息");
-                        sync();
+                        log.debug("未知");
+                        handleMsg(sync());
                     } else if (StringUtils.equals(status[1], "4")) {
                         log.debug("通讯录更新");
                         sync();
                     } else if (StringUtils.equals(status[1], "6")) {
                         log.debug("可能是红包");
-                        sync();
+                        handleMsg(sync());
                     } else if (StringUtils.equals(status[1], "7")) {
                         log.debug("手机上操作了微信");
-                        sync();
+                        handleMsg(sync());
                     } else if (StringUtils.equals(status[1], "0")) {
                         log.debug("无事件");
                     } else {
-                        sync();
+                        handleMsg(sync());
                     }
                 } else {
                     log.debug("未知的status");
@@ -339,6 +343,66 @@ public class IngBot {
                 log.error(e.toString());
             }
         }
+    }
+
+    /**
+     * msg_type_id:
+     * 0 -> Init
+     * 1 -> Self
+     * 2 -> FileHelper
+     * 3 -> Group
+     * 4 -> Contact
+     * 5 -> Public
+     * 6 -> Special
+     * 99 -> Unknown
+     *
+     * @param map
+     */
+    public void handleMsg(Map map) {
+        if (map == null || map.isEmpty()) {
+            return;
+        }
+        List<Map<String, Object>> msgList = (List<Map<String, Object>>) map.get("AddMsgList");
+
+        int msgTypeId = -1;
+
+        for (Map<String, Object> msg : msgList) {
+            if ((int) msg.get("MsgType") == 51 && (int) msg.get("StatusNotifyCode") == 4) {
+                // 消息初始化
+                msgTypeId = 0;
+                fullUserNameList = StringUtils.split(msg.get("StatusNotifyUserName").toString(), ",");
+            } else if (StringUtils.equals(msg.get("FromUserName").toString(), myAccount.get("UserName").toString())) {
+                msgTypeId = 1;
+                log.debug("自己发的消息: " + msg.get("Content").toString());
+            } else if (isContact(msg.get("FromUserName").toString())) {
+                String userName = getNameByUidFromContact(msg.get("FromUserName").toString(), true);
+                if (StringUtils.isNotEmpty(userName)) {
+                    log.info("好友 " + userName + ": " + msg.get("Content"));
+                }
+            }
+        }
+    }
+
+    public boolean isContact(String uid) {
+        for (HashMap<String, Object> contact : contactList) {
+            if (StringUtils.equals(uid, contact.get("UserName").toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public String getNameByUidFromContact(String uid, boolean isRemarkName) {
+        for (HashMap<String, Object> contact : contactList) {
+            if (StringUtils.equals(uid, contact.get("UserName").toString())) {
+                if (isRemarkName) {
+                    return contact.get("RemarkName").toString();
+                } else {
+                    return contact.get("NickName").toString();
+                }
+            }
+        }
+        return null;
     }
 
     /**
