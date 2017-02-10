@@ -7,7 +7,10 @@ import org.dom4j.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -53,4 +56,9 @@ public class BotUtils {
         syncKeyStr = syncKeyStr.substring(0, syncKeyStr.length() - 1);
         return syncKeyStr;
     }
+
+    public static void displayQRCodeInConsole(String PNGFileName){
+        log.debug("终端显示二维码");
+    }
+
 }

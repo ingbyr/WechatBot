@@ -1,14 +1,20 @@
 package wechatAPI.bots;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import okhttp3.*;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.ResponseBody;
+import org.apache.commons.lang3.StringUtils;
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wechatAPI.NetUtils;
 
 import java.io.IOException;
-import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.*;
 
 /**
  * Created on 17-2-9.
@@ -20,10 +26,9 @@ public class WeatherBot {
     private static final Logger log = LoggerFactory.getLogger(NetUtils.class);
     private static final String USER_AGENT = "User-Agent";
     private static final String USER_AGENT_CONTENT = "Mozilla/5.0 (X11; Linux i686; U;) Gecko/20070322 Kazehakase/0.4.5";
-    private static ObjectMapper mapper = new ObjectMapper();
 
 
-    private String baseUrl = "http://www.weather.com.cn/data/cityinfo/";
+    private String baseUrl = "http://wthrcdn.etouch.cn/WeatherApi?city=";
     private String url = "";
     private final OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
@@ -32,35 +37,50 @@ public class WeatherBot {
             .build();
 
     public WeatherBot() {
-        url = baseUrl + "101160701.html"; //张掖
     }
 
-    public String getWeather() {
+    public String getWeather(String city) {
+        String url = baseUrl + city;
         Request request = new Request.Builder()
                 .addHeader(USER_AGENT, USER_AGENT_CONTENT)
                 .url(url)
                 .build();
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
-//            {"weatherinfo":{"city":"张掖","cityid":"101160701","temp":"15","WD":"北风","WS":"3级","SD":"8%","WSE":"3","time":"17:00","isRadar":"1","Radar":"JC_RADAR_AZ9936_JB","njd":"28400","qy":"850","rain":"0"}}
-            Map dataMap = mapper.readValue(responseBody.bytes(), Map.class);
+            Document document = DocumentHelper.parseText(responseBody.string());
+            Element root = document.getRootElement();
+            Iterator iterator = root.elementIterator();
+            StringBuilder sb = new StringBuilder();
+            while (iterator.hasNext()) {
+                Element ele = (Element) iterator.next();
+                if (StringUtils.equals(ele.getName(), "city")) {
+                    sb.append("城市: " + ele.getStringValue() + "\n");
+                } else if (StringUtils.equals(ele.getName(), "updatetime")) {
+                    sb.append("数据更新时间: " + ele.getStringValue() + "\n");
+                } else if (StringUtils.equals(ele.getName(), "wendu")) {
+                    sb.append("实时温度: " + ele.getStringValue() + "℃\n");
+                } else if (StringUtils.equals(ele.getName(), "fengli")) {
+                    sb.append("风力: " + ele.getStringValue() + "\n");
+                } else if (StringUtils.equals(ele.getName(), "shidu")) {
+                    sb.append("湿度: " + ele.getStringValue() + "\n");
+                } else if (StringUtils.equals(ele.getName(), "fengxiang")) {
+                    sb.append("风向: " + ele.getStringValue());
+                } else {
 
-            log.debug("weatherinfo: " + dataMap.get("weatherinfo").toString());
+                }
 
-            Map<String, Object> weather = (Map<String, Object>) dataMap.get("weatherinfo");
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.append("- 城市: " + weather.get("city"));
-            stringBuilder.append("\n- 温度: " + weather.get("temp1"));
-            stringBuilder.append("\n- 天气: " + weather.get("weather"));
-            return stringBuilder.toString();
+            }
+            return sb.toString();
         } catch (IOException e) {
             log.error("weather bot 请求数据失败");
             log.error(e.toString());
+        } catch (DocumentException e) {
+            e.printStackTrace();
         }
         return null;
     }
 
     public static void main(String[] args) {
         WeatherBot bot = new WeatherBot();
-        log.debug(bot.getWeather());
+        log.debug(bot.getWeather("张掖"));
     }
 }

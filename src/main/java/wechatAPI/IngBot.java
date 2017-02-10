@@ -23,7 +23,7 @@ public class IngBot {
     // todo 终端日志颜色区分
     private static Logger log = LoggerFactory.getLogger(IngBot.class);
     private static ObjectMapper mapper = new ObjectMapper();
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG_FILE = false;
 
     // 状态码
     private static final String SUCCESS = "200";
@@ -71,7 +71,7 @@ public class IngBot {
 
     public void getUuid() throws IOException {
         loginUrl = loginUrl + new Date().getTime();
-        log.debug("loginUrl: " + loginUrl);
+        log.trace("loginUrl: " + loginUrl);
         String response = NetUtils.request(loginUrl);
         // e.g: window.QRLogin.code = 200; window.QRLogin.uuid = "wejZcbBd2w==";
         String code = StringUtils.substringBetween(response, "window.QRLogin.code = ", ";");
@@ -83,21 +83,26 @@ public class IngBot {
 
     public void generateQrcode() throws IOException {
         qrcodeUrl += uuid;
-        log.debug("qrcode url: " + qrcodeUrl);
+        log.trace("qrcode url: " + qrcodeUrl);
         byte[] qrcodeDate = NetUtils.requestForBytes(qrcodeUrl);
-        String imageUrl = System.getProperty("user.dir") + "/res/temp.png";
+//        String imageUrl = System.getProperty("user.dir") + "/res/qrcode.png";
+        String imageUrl = System.getProperty("user.home") + "/WechatBotRun/qrcode.png";
         NetUtils.writeToFile(imageUrl, qrcodeDate);
-        Desktop desktop = Desktop.getDesktop();
-        desktop.open(new File(imageUrl));
+        try {
+            Desktop desktop = Desktop.getDesktop();
+            desktop.open(new File(imageUrl));
+        } finally {
+            BotUtils.displayQRCodeInConsole(imageUrl);
+        }
     }
 
     public void waitForLogin() throws IOException, InterruptedException {
         log.info("请扫描二维码登陆微信");
         String url = StringUtils.join("https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=", uuid, "&tip=1&_=", new Date().getTime());
-        log.debug("login url: " + url);
+        log.trace("login url: " + url);
         while (true) {
             String response = NetUtils.request(url);
-            log.debug("response: " + response);
+            log.trace("response: " + response);
 
             // 登陆过程中
             if (StringUtils.startsWith(response, "window.code=")) {
@@ -137,7 +142,7 @@ public class IngBot {
         redirectUrl += "&fun=new";
 
         String response = NetUtils.request(redirectUrl);
-        log.debug("response: " + response);
+        log.trace("response: " + response);
         initData = BotUtils.parseInitData(response);
 
         // 组装请求body
@@ -156,14 +161,14 @@ public class IngBot {
 
     public void init() throws IOException {
         String url = baseUrl + "/webwxinit?r=" + (new Date().getTime()) + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
-        log.debug("url: " + url);
+        log.trace("url: " + url);
         log.debug("baseRequestContent " + baseRequestContent);
 
         byte[] response = NetUtils.requestWithJsonForBytes(url, baseRequestContent);
 
         // 保存json数据到文件temp.json
-        if (DEBUG) {
-            String path = System.getProperty("user.dir") + "/res/init.json";
+        if (DEBUG_FILE) {
+            String path = System.getProperty("user.dir") + "/WechatBotRun/init.json";
             NetUtils.writeToFile(path, response);
         }
 
@@ -198,13 +203,13 @@ public class IngBot {
 
         String url = baseUrl + "/webwxgetcontact?pass_ticket=" + initData.get("pass_ticket")
                 + "&skey=" + initData.get("skey") + "&r=" + new Date().getTime();
-        log.debug("url: " + url);
+        log.trace("url: " + url);
 
 
         try {
             byte[] response = NetUtils.requestWithJsonForBytes(url, "{}");
-            if (DEBUG) {
-                String path = System.getProperty("user.dir") + "/res/contacts.json";
+            if (DEBUG_FILE) {
+                String path = System.getProperty("user.dir") + "/WechatBotRun/contacts.json";
                 NetUtils.writeToFile(path, response);
             }
 
@@ -271,9 +276,9 @@ public class IngBot {
         request.put("_", new Date().getTime());
 
         String url = "https://" + syncHost + "/cgi-bin/mmwebwx-bin/synccheck?" + NetUtils.getUrlParamsByMap(request, false);
-        log.debug("url: " + url);
+        log.trace("url: " + url);
         String response = NetUtils.request(url);
-        log.debug("syncCheck response: " + response);
+        log.trace("syncCheck response: " + response);
 
         String retcode = StringUtils.substringBetween(response, "retcode:\"", "\",");
         String selector = StringUtils.substringBetween(response, "selector:\"", "\"}");
@@ -283,7 +288,7 @@ public class IngBot {
     public Map sync() {
         String url = baseUrl + "/webwxsync?sid=" + initData.get("wxsid") + "&skey="
                 + initData.get("skey") + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
-        log.debug("url: " + url);
+        log.trace("url: " + url);
         Map<String, Object> request = new HashMap<>();
         request.put("BaseRequest", baseRequest);
         request.put("SyncKey", syncKey);
@@ -298,9 +303,9 @@ public class IngBot {
                 syncKey = (Map<String, Object>) dataMap.get("SyncKey");
                 List<HashMap<String, Integer>> syncKeyList = (List<HashMap<String, Integer>>) ((Map<String, Object>) dataMap.get("SyncKey")).get("List");
                 syncKeyStr = BotUtils.genSyncStr(syncKeyList);
-                log.debug("regenerate syncKeyStr: " + syncKeyStr);
+                log.trace("regenerate syncKeyStr: " + syncKeyStr);
             }
-            log.debug("sync response: \n" + response);
+            log.trace("sync response: \n" + response);
             return dataMap;
         } catch (IOException e) {
             log.error(e.toString());
@@ -312,6 +317,7 @@ public class IngBot {
         testSyncCheck();
         String[] status;
         long checkTime;
+        log.info("WechatBot 启动完成");
         while (true) {
             checkTime = new Date().getTime();
             try {
@@ -323,24 +329,18 @@ public class IngBot {
                     log.info("从其它设备上登了网页微信");
                     break;
                 } else if (StringUtils.equals(status[0], "0")) {
-                    Thread.sleep(1000);
                     if (StringUtils.equals(status[1], "2")) {
-                        log.debug("有新消息");
                         handleMsg(sync());
                     } else if (StringUtils.equals(status[1], "3")) {
-                        log.debug("未知事件");
                         handleMsg(sync());
                     } else if (StringUtils.equals(status[1], "4")) {
-                        log.debug("通讯录更新");
                         sync();
                     } else if (StringUtils.equals(status[1], "6")) {
-                        log.debug("可能是红包我也不知道哈哈哈");
                         handleMsg(sync());
                     } else if (StringUtils.equals(status[1], "7")) {
-                        log.debug("手机上操作了微信");
                         handleMsg(sync());
                     } else if (StringUtils.equals(status[1], "0")) {
-                        log.debug("无事件");
+
                     } else {
                         handleMsg(sync());
                     }
@@ -375,8 +375,8 @@ public class IngBot {
         if (map == null || map.isEmpty()) {
             return;
         }
-        List<Map<String, Object>> msgList = (List<Map<String, Object>>) map.get("AddMsgList");
 
+        List<Map<String, Object>> msgList = (List<Map<String, Object>>) map.get("AddMsgList");
         int msgTypeId = -1;
 
         for (Map<String, Object> msg : msgList) {
@@ -388,24 +388,31 @@ public class IngBot {
                 // 自己给自己发送的消息
                 msgTypeId = 1;
                 String msgContent = msg.get("Content").toString();
-                log.debug("自己发的消息: " + msgContent);
-                try {
-                    sendMsgByUid("test" + new Date().getTime(), msg.get("FromUserName").toString());
-                } catch (IOException e) {
-                    e.printStackTrace();
+                if (StringUtils.startsWith(msgContent, "/")) {
+                    log.info("自己发的消息: " + msgContent);
+                    try {
+                        sendMsgByUid("test" + new Date().getTime(), msg.get("FromUserName").toString());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             } else if (isContact(msg.get("FromUserName").toString())) {
                 // 好友发送的消息
                 String name = getNameByUidFromContact(msg.get("FromUserName").toString(), true);
                 if (StringUtils.isNotEmpty(name)) {
                     String msgContent = msg.get("Content").toString();
-                    //天气bot测试
                     log.info("好友 " + name + ": " + msgContent);
-                    if (StringUtils.startsWith(msgContent, "/w")) {
+
+                    //天气bot
+                    if (StringUtils.startsWith(msgContent, "/天气")) {
+                        String city = StringUtils.substringAfter(msgContent, "/天气").trim();
                         WeatherBot weatherBot = new WeatherBot();
-                        String data = weatherBot.getWeather();
-                        log.debug("data: " + data);
+                        String data = weatherBot.getWeather(city);
+                        log.info("回复信息: " + data);
                         try {
+                            if (StringUtils.isBlank(data)) {
+                                data = "暂无此城市天气信息";
+                            }
                             sendMsgByUid(data, msg.get("FromUserName").toString());
                         } catch (IOException e) {
                             log.error("信息发送失败");
@@ -441,7 +448,7 @@ public class IngBot {
 
     public void sendMsgByUid(String data, String dst) throws IOException {
         String url = baseUrl + "/webwxsendmsg?pass_ticket=" + initData.get("pass_ticket");
-        log.debug("url: " + url);
+        log.trace("url: " + url);
         Map params = new HashMap<String, Object>();
         Map msg = new HashMap<String, Object>();
         String temp = String.valueOf((new Date().getTime() * 10000) + ThreadLocalRandom.current().nextInt(0, 9999));
@@ -459,7 +466,7 @@ public class IngBot {
 
         String paramsContent = mapper.writeValueAsString(params);
         String response = NetUtils.requestWithJson(url, paramsContent);
-        log.debug("response: " + response);
+        log.trace("response: " + response);
     }
 
     /**

@@ -17,10 +17,10 @@
 hs_err_pid*
 
 # inbyr define
-res/
+WechatBotRun/
 src/test/
 target/
 .idea/
 log/
-Temp*
+src/main/java/wechatAPI/temp
 
