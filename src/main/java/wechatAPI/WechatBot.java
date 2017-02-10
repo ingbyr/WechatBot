@@ -6,11 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import wechatAPI.bots.WeatherBot;
 
-import java.awt.*;
-import java.io.File;
 import java.io.IOException;
 import java.util.*;
-import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -19,9 +16,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * @author ing
  * @version 1
  */
-public class IngBot {
+public class WechatBot {
     // todo 终端日志颜色区分
-    private static Logger log = LoggerFactory.getLogger(IngBot.class);
+    private static Logger log = LoggerFactory.getLogger(WechatBot.class);
     private static ObjectMapper mapper = new ObjectMapper();
     private static final boolean DEBUG_FILE = false;
 
@@ -59,7 +56,7 @@ public class IngBot {
 //    private HashMap groupMembers; // 所有群组的成员 {'group_id1': [member1, member2, ...], ...}
 //    private HashMap accountInfo; // 所有账户 {'group_member':{'id':{'type':'group_member', 'info':{}}, ...}, 'normal_member':{'id':{}, ...}}
 
-    public IngBot() {
+    public WechatBot() {
         //　避免SSL报错
         System.setProperty("jsse.enableSNIExtension", "false");
 
@@ -85,19 +82,20 @@ public class IngBot {
         qrcodeUrl += uuid;
         log.trace("qrcode url: " + qrcodeUrl);
         byte[] qrcodeDate = NetUtils.requestForBytes(qrcodeUrl);
-//        String imageUrl = System.getProperty("user.dir") + "/res/qrcode.png";
         String imageUrl = System.getProperty("user.home") + "/WechatBotRun/qrcode.png";
         NetUtils.writeToFile(imageUrl, qrcodeDate);
         try {
-            Desktop desktop = Desktop.getDesktop();
-            desktop.open(new File(imageUrl));
+////            跨平台显示二维码图片
+//            Desktop desktop = Desktop.getDesktop();
+//            desktop.open(new File(imageUrl));
         } finally {
+            log.info("请扫描二维码登陆微信");
+            log.info("二维码保存在　" + imageUrl);
             BotUtils.displayQRCodeInConsole(imageUrl);
         }
     }
 
     public void waitForLogin() throws IOException, InterruptedException {
-        log.info("请扫描二维码登陆微信");
         String url = StringUtils.join("https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=", uuid, "&tip=1&_=", new Date().getTime());
         log.trace("login url: " + url);
         while (true) {
@@ -408,7 +406,7 @@ public class IngBot {
                         String city = StringUtils.substringAfter(msgContent, "/天气").trim();
                         WeatherBot weatherBot = new WeatherBot();
                         String data = weatherBot.getWeather(city);
-                        log.info("回复信息: " + data);
+                        log.info("回复信息:\n " + data);
                         try {
                             if (StringUtils.isBlank(data)) {
                                 data = "暂无此城市天气信息";
@@ -475,7 +473,7 @@ public class IngBot {
      * @param args
      */
     public static void main(String[] args) throws IOException, InterruptedException {
-        IngBot bot = new IngBot();
+        WechatBot bot = new WechatBot();
         bot.getUuid();
         bot.generateQrcode();
         bot.waitForLogin();

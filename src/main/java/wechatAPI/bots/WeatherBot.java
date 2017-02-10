@@ -27,9 +27,7 @@ public class WeatherBot {
     private static final String USER_AGENT = "User-Agent";
     private static final String USER_AGENT_CONTENT = "Mozilla/5.0 (X11; Linux i686; U;) Gecko/20070322 Kazehakase/0.4.5";
 
-
     private String baseUrl = "http://wthrcdn.etouch.cn/WeatherApi?city=";
-    private String url = "";
     private final OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
             .readTimeout(5, TimeUnit.MINUTES)
@@ -79,8 +77,4 @@ public class WeatherBot {
         return null;
     }
 
-    public static void main(String[] args) {
-        WeatherBot bot = new WeatherBot();
-        log.debug(bot.getWeather("张掖"));
-    }
 }

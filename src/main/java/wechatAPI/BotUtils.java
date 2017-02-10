@@ -57,8 +57,7 @@ public class BotUtils {
         return syncKeyStr;
     }
 
-    public static void displayQRCodeInConsole(String PNGFileName){
-        log.debug("终端显示二维码");
+    public static void displayQRCodeInConsole(String PNGFileName) {
+        // todo 终端显示二维码
     }
-
 }
