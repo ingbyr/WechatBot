@@ -4,10 +4,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import wechatAPI.bots.WeatherBot;
 
+import java.awt.*;
+import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -21,11 +25,16 @@ public class WechatBot {
     private static Logger log = LoggerFactory.getLogger(WechatBot.class);
     private static ObjectMapper mapper = new ObjectMapper();
     private static final boolean DEBUG_FILE = false;
+    private static final boolean LOCAL_RUN = true;
 
     // 状态码
     private static final String SUCCESS = "200";
     private static final String SCANED = "201";
     private static final String TIMEOUT = "408";
+
+    // 其他bot
+    public static Map<String, Method> commands = new HashMap<>();
+
 
     private boolean isBigContact = false;
 
@@ -50,9 +59,8 @@ public class WechatBot {
     private List<HashMap<String, Object>> specialList = new ArrayList<>(); // 特殊账号列表
     private List<HashMap<String, Object>> groupList = new ArrayList<>(); // 群聊列表
 
-    // 消息相关
-    private String[] fullUserNameList = null;
-
+// 消息相关
+//    private String[] fullUserNameList = null;
 //    private HashMap groupMembers; // 所有群组的成员 {'group_id1': [member1, member2, ...], ...}
 //    private HashMap accountInfo; // 所有账户 {'group_member':{'id':{'type':'group_member', 'info':{}}, ...}, 'normal_member':{'id':{}, ...}}
 
@@ -85,9 +93,11 @@ public class WechatBot {
         String imageUrl = System.getProperty("user.home") + "/WechatBotRun/qrcode.png";
         NetUtils.writeToFile(imageUrl, qrcodeDate);
         try {
-////            跨平台显示二维码图片
-//            Desktop desktop = Desktop.getDesktop();
-//            desktop.open(new File(imageUrl));
+            if (LOCAL_RUN) {
+                //跨平台显示二维码图片
+                Desktop desktop = Desktop.getDesktop();
+                desktop.open(new File(imageUrl));
+            }
         } finally {
             log.info("请扫描二维码登陆微信");
             log.info("二维码保存在　" + imageUrl);
@@ -316,6 +326,10 @@ public class WechatBot {
         String[] status;
         long checkTime;
         log.info("WechatBot 启动完成");
+        // 加载其他命令和相关bot
+        log.info("OthersBot　正在加载");
+        LoadCommands.init();
+        commands = LoadCommands.getCommands();
         while (true) {
             checkTime = new Date().getTime();
             try {
@@ -381,18 +395,14 @@ public class WechatBot {
             if ((int) msg.get("MsgType") == 51 && (int) msg.get("StatusNotifyCode") == 4) {
                 // 消息初始化
                 msgTypeId = 0;
-                fullUserNameList = StringUtils.split(msg.get("StatusNotifyUserName").toString(), ",");
+//                fullUserNameList = StringUtils.split(msg.get("StatusNotifyUserName").toString(), ",");
             } else if (StringUtils.equals(msg.get("FromUserName").toString(), myAccount.get("UserName").toString())) {
                 // 自己给自己发送的消息
                 msgTypeId = 1;
                 String msgContent = msg.get("Content").toString();
                 if (StringUtils.startsWith(msgContent, "/")) {
                     log.info("自己发的消息: " + msgContent);
-                    try {
-                        sendMsgByUid("test" + new Date().getTime(), msg.get("FromUserName").toString());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    replyByBot(msgContent, msg.get("FromUserName").toString());
                 }
             } else if (isContact(msg.get("FromUserName").toString())) {
                 // 好友发送的消息
@@ -400,23 +410,7 @@ public class WechatBot {
                 if (StringUtils.isNotEmpty(name)) {
                     String msgContent = msg.get("Content").toString();
                     log.info("好友 " + name + ": " + msgContent);
-
-                    //天气bot
-                    if (StringUtils.startsWith(msgContent, "/天气")) {
-                        String city = StringUtils.substringAfter(msgContent, "/天气").trim();
-                        WeatherBot weatherBot = new WeatherBot();
-                        String data = weatherBot.getWeather(city);
-                        log.info("回复信息:\n " + data);
-                        try {
-                            if (StringUtils.isBlank(data)) {
-                                data = "暂无此城市天气信息";
-                            }
-                            sendMsgByUid(data, msg.get("FromUserName").toString());
-                        } catch (IOException e) {
-                            log.error("信息发送失败");
-                            log.error(e.toString());
-                        }
-                    }
+                    replyByBot(msgContent, msg.get("FromUserName").toString());
                 }
             }
         }
@@ -466,6 +460,33 @@ public class WechatBot {
         String response = NetUtils.requestWithJson(url, paramsContent);
         log.trace("response: " + response);
     }
+
+    public void replyByBot(String msgContent, String toUser) {
+        String[] cmd = StringUtils.split(msgContent, " ");
+        log.debug("cmd: " + Arrays.toString(cmd));
+        String replyStr = "[ERROR] 命令错误";
+        // todo 命令参数限制为２
+        if (cmd.length == 2) {
+            try {
+                Method bot = commands.get(cmd[0]);
+                if (bot != null) {
+                    replyStr = bot.invoke(null, cmd[1]).toString();
+                }
+            } catch (IllegalAccessException e) {
+                log.error(e.toString());
+            } catch (InvocationTargetException e) {
+                log.error(e.toString());
+            }
+        }
+        try {
+            //回复消息
+            sendMsgByUid(replyStr, toUser);
+        } catch (IOException e) {
+            log.error("bot 消息发送失败");
+            log.error(e.toString());
+        }
+    }
+
 
     /**
      * 流程测试
