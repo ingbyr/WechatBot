@@ -1,5 +1,7 @@
 package wechatAPI;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import wechatAPI.annotation.BotCommand;
 
 import java.lang.reflect.InvocationTargetException;
@@ -14,6 +16,8 @@ import java.util.*;
  */
 public class LoadCommands {
     public static Map<String, Method> commands = new HashMap<>();
+    private static Logger log = LoggerFactory.getLogger(WechatBot.class);
+
 
     public static void init() {
         Commands cmd = new Commands();
@@ -21,6 +25,7 @@ public class LoadCommands {
         Method[] methods = c.getDeclaredMethods();
         for (Method method : methods) {
             BotCommand bcmd = method.getAnnotation(BotCommand.class);
+            log.info("启动 " + method.getName());
             commands.put(bcmd.value(), method);
         }
     }
@@ -29,6 +34,9 @@ public class LoadCommands {
         return commands;
     }
 
+    /**
+     * 测试
+     */
     public static void main(String[] args) throws InvocationTargetException, IllegalAccessException {
         init();
         // 动态调用静态方法测试

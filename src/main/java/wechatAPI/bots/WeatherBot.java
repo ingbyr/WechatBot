@@ -55,7 +55,7 @@ public class WeatherBot {
                 } else if (StringUtils.equals(ele.getName(), "updatetime")) {
                     sb.append("数据更新时间: " + ele.getStringValue() + "\n");
                 } else if (StringUtils.equals(ele.getName(), "wendu")) {
-                    sb.append("实时温度: " + ele.getStringValue() + "℃\n");
+                    sb.append("温度: " + ele.getStringValue() + "℃\n");
                 } else if (StringUtils.equals(ele.getName(), "fengli")) {
                     sb.append("风力: " + ele.getStringValue() + "\n");
                 } else if (StringUtils.equals(ele.getName(), "shidu")) {

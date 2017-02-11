@@ -1,5 +1,6 @@
 package wechatAPI;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -325,10 +326,11 @@ public class WechatBot {
         testSyncCheck();
         String[] status;
         long checkTime;
-        log.info("WechatBot 启动完成");
+        log.info("Wechat Bot 启动完成");
         // 加载其他命令和相关bot
-        log.info("OthersBot　正在加载");
+        log.info("Other Bots 正在启动");
         LoadCommands.init();
+        log.info("Other Bots 启动完成");
         commands = LoadCommands.getCommands();
         while (true) {
             checkTime = new Date().getTime();
@@ -395,7 +397,6 @@ public class WechatBot {
             if ((int) msg.get("MsgType") == 51 && (int) msg.get("StatusNotifyCode") == 4) {
                 // 消息初始化
                 msgTypeId = 0;
-//                fullUserNameList = StringUtils.split(msg.get("StatusNotifyUserName").toString(), ",");
             } else if (StringUtils.equals(msg.get("FromUserName").toString(), myAccount.get("UserName").toString())) {
                 // 自己给自己发送的消息
                 msgTypeId = 1;
@@ -438,7 +439,7 @@ public class WechatBot {
         return null;
     }
 
-    public void sendMsgByUid(String data, String dst) throws IOException {
+    public void sendMsgByUid(String data, String dst) {
         String url = baseUrl + "/webwxsendmsg?pass_ticket=" + initData.get("pass_ticket");
         log.trace("url: " + url);
         Map params = new HashMap<String, Object>();
@@ -456,17 +457,39 @@ public class WechatBot {
         params.put("BaseRequest", baseRequest);
         params.put("Msg", msg);
 
-        String paramsContent = mapper.writeValueAsString(params);
-        String response = NetUtils.requestWithJson(url, paramsContent);
-        log.trace("response: " + response);
+
+        String paramsContent = null;
+        try {
+            paramsContent = mapper.writeValueAsString(params);
+            String response = NetUtils.requestWithJson(url, paramsContent);
+            log.trace("response: " + response);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            log.error("bot 消息发送失败");
+            e.printStackTrace();
+        }
     }
 
     public void replyByBot(String msgContent, String toUser) {
+        // todo　在IllegalAccessException回复参数错误信息
         String[] cmd = StringUtils.split(msgContent, " ");
         log.debug("cmd: " + Arrays.toString(cmd));
-        String replyStr = "[ERROR] 命令错误";
-        // todo 命令参数限制为２
-        if (cmd.length == 2) {
+        String replyStr = null;
+        // 命令参数限制为1
+        if (cmd.length == 1) {
+            try {
+                Method bot = commands.get(cmd[0]);
+                if (bot != null) {
+                    replyStr = bot.invoke(null).toString();
+                }
+            } catch (IllegalAccessException e) {
+                log.error(e.toString());
+            } catch (InvocationTargetException e) {
+                log.error(e.toString());
+            }
+        } else if (cmd.length == 2) {
+            // 命令参数限制为２
             try {
                 Method bot = commands.get(cmd[0]);
                 if (bot != null) {
@@ -477,16 +500,12 @@ public class WechatBot {
             } catch (InvocationTargetException e) {
                 log.error(e.toString());
             }
+        } else {
+            replyStr = "[ERROR] 命令错误";
         }
-        try {
-            //回复消息
-            sendMsgByUid(replyStr, toUser);
-        } catch (IOException e) {
-            log.error("bot 消息发送失败");
-            log.error(e.toString());
-        }
+        //回复消息
+        sendMsgByUid(replyStr, toUser);
     }
-
 
     /**
      * 流程测试
