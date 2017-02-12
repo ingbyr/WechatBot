@@ -22,7 +22,7 @@ public class Commands {
     @BotCommand("/天气")
     public static String currentWeather(String city) {
         WeatherBot weatherBot = new WeatherBot();
-        String data = weatherBot.getWeather(city);
+        String data = weatherBot.start(city);
 
         if (StringUtils.isBlank(data)) {
             data = logo + "暂无此城市天气信息";

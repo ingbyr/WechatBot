@@ -1,6 +1,5 @@
 package wechatAPI.bots;
 
-import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.ResponseBody;
 import org.apache.commons.lang3.StringUtils;
@@ -8,13 +7,9 @@ import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import wechatAPI.NetUtils;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-import java.util.*;
+import java.util.Iterator;
 
 /**
  * Created on 17-2-9.
@@ -22,27 +17,27 @@ import java.util.*;
  * @author ing
  * @version 1
  */
-public class WeatherBot {
-    private static final Logger log = LoggerFactory.getLogger(NetUtils.class);
-    private static final String USER_AGENT = "User-Agent";
-    private static final String USER_AGENT_CONTENT = "Mozilla/5.0 (X11; Linux i686; U;) Gecko/20070322 Kazehakase/0.4.5";
-
-    private String baseUrl = "http://wthrcdn.etouch.cn/WeatherApi?city=";
-    private final OkHttpClient client = new OkHttpClient.Builder()
-            .connectTimeout(60, TimeUnit.SECONDS)
-            .readTimeout(5, TimeUnit.MINUTES)
-            .writeTimeout(5, TimeUnit.MINUTES)
-            .build();
+public class WeatherBot extends BaseBot {
 
     public WeatherBot() {
     }
 
-    public String getWeather(String city) {
-        String url = baseUrl + city;
-        Request request = new Request.Builder()
+    @Override
+    public void initUrl(String arg) {
+        baseUrl = "http://wthrcdn.etouch.cn/WeatherApi?city=";
+        url = baseUrl + arg;
+    }
+
+    @Override
+    public void initRequset() {
+        request = new Request.Builder()
                 .addHeader(USER_AGENT, USER_AGENT_CONTENT)
                 .url(url)
                 .build();
+    }
+
+    @Override
+    public String doRequest() {
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             Document document = DocumentHelper.parseText(responseBody.string());
             Element root = document.getRootElement();
@@ -77,4 +72,8 @@ public class WeatherBot {
         return null;
     }
 
+    public static void main(String[] args){
+        WeatherBot bot = new WeatherBot();
+        System.out.println(bot.start("北京"));
+    }
 }
