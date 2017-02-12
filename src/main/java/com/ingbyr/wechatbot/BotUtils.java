@@ -1,4 +1,4 @@
-package wechatAPI;
+package com.ingbyr.wechatbot;
 
 import org.dom4j.Document;
 import org.dom4j.DocumentException;

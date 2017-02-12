@@ -1,4 +1,4 @@
-package wechatAPI.bots;
+package com.ingbyr.wechatbot.bots;
 
 import okhttp3.Request;
 import okhttp3.ResponseBody;

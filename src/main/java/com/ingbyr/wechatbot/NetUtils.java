@@ -1,4 +1,4 @@
-package wechatAPI;
+package com.ingbyr.wechatbot;
 
 import okhttp3.*;
 import org.slf4j.Logger;

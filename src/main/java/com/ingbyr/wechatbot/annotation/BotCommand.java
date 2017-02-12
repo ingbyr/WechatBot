@@ -1,4 +1,4 @@
-package wechatAPI.annotation;
+package com.ingbyr.wechatbot.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
