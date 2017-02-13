@@ -26,7 +26,7 @@ public class WechatBot {
     private static Logger log = LoggerFactory.getLogger(WechatBot.class);
     private static ObjectMapper mapper = new ObjectMapper();
     private static final boolean DEBUG_FILE = false;
-    private static final boolean LOCAL_RUN = true;
+    private static final boolean LOCAL_RUN = false;
 
     // 状态码
     private static final String SUCCESS = "200";
@@ -35,6 +35,8 @@ public class WechatBot {
 
     // 其他bot
     public static Map<String, Method> commands = new HashMap<>();
+    // 帮助消息
+    public static String help = "";
 
     // 参数
     private String loginUrl = "";
@@ -57,9 +59,6 @@ public class WechatBot {
     private List<HashMap<String, Object>> publicList = new ArrayList<>(); // 公众账号列表
     private List<HashMap<String, Object>> specialList = new ArrayList<>(); // 特殊账号列表
     private List<HashMap<String, Object>> groupList = new ArrayList<>(); // 群聊列表
-
-    // 帮助消息
-    private String help = "test help";
 
 // 消息相关
 //    private String[] fullUserNameList = null;
@@ -331,6 +330,7 @@ public class WechatBot {
         // 加载其他命令和相关bot
         log.info("Other Bots 正在启动");
         LoadCommands.init();
+        help = LoadCommands.getHelper();
         log.info("Other Bots 启动完成");
         commands = LoadCommands.getCommands();
         while (true) {

@@ -1,13 +1,11 @@
 package com.ingbyr.wechatbot;
 
 import com.ingbyr.wechatbot.annotation.BotCommand;
+import com.ingbyr.wechatbot.annotation.BotHelper;
 import com.ingbyr.wechatbot.bots.WeatherBot;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
 
 /**
  * Created on 17-2-11.
@@ -20,6 +18,7 @@ public class Commands {
     private static final String logo = "[BOT REPLY]\n";
 
     @BotCommand("/天气")
+    @BotHelper("城市实时天气: /天气 [城市名称]")
     public static String currentWeather(String city) {
         WeatherBot weatherBot = new WeatherBot();
         String data = weatherBot.start(city);
@@ -33,13 +32,10 @@ public class Commands {
         return data;
     }
 
-    @BotCommand("/时间")
-    public static String currentTime() {
-        LocalDate today = LocalDate.now();
-        LocalTime time = LocalTime.now().withNano(0);
-        String data = logo + today.toString() + " " + time.toString();
-        log.info("回复信息: " + data);
-        return data;
+    @BotCommand("/帮助")
+    @BotHelper("BOT的使用帮助: /帮助")
+    public static String botHelper() {
+        return WechatBot.help;
     }
 
     /**
