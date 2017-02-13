@@ -36,9 +36,6 @@ public class WechatBot {
     // 其他bot
     public static Map<String, Method> commands = new HashMap<>();
 
-
-    private boolean isBigContact = false;
-
     // 参数
     private String loginUrl = "";
     private String uuid = "";
@@ -49,6 +46,7 @@ public class WechatBot {
     private String baseRequestContent = "";
     private String syncKeyStr = "";
     private String syncHost = "";
+    private boolean isBigContact = false;
 
     private Map<String, String> initData = new HashMap<>();
     private Map<String, String> baseRequest = new HashMap<>();
@@ -59,6 +57,9 @@ public class WechatBot {
     private List<HashMap<String, Object>> publicList = new ArrayList<>(); // 公众账号列表
     private List<HashMap<String, Object>> specialList = new ArrayList<>(); // 特殊账号列表
     private List<HashMap<String, Object>> groupList = new ArrayList<>(); // 群聊列表
+
+    // 帮助消息
+    private String help = "test help";
 
 // 消息相关
 //    private String[] fullUserNameList = null;
@@ -407,11 +408,13 @@ public class WechatBot {
                 }
             } else if (isContact(msg.get("FromUserName").toString())) {
                 // 好友发送的消息
-                String name = getNameByUidFromContact(msg.get("FromUserName").toString(), true);
-                if (StringUtils.isNotEmpty(name)) {
-                    String msgContent = msg.get("Content").toString();
-                    log.info("好友 " + name + ": " + msgContent);
-                    replyByBot(msgContent, msg.get("FromUserName").toString());
+                String msgContent = msg.get("Content").toString();
+                if (StringUtils.startsWith(msgContent, "/")) {
+                    String name = getNameByUidFromContact(msg.get("FromUserName").toString(), true);
+                    if (StringUtils.isNotEmpty(name)) {
+                        log.info("好友 " + name + ": " + msgContent);
+                        replyByBot(msgContent, msg.get("FromUserName").toString());
+                    }
                 }
             }
         }
@@ -471,40 +474,38 @@ public class WechatBot {
         }
     }
 
+    // todo 发送图片
+
     public void replyByBot(String msgContent, String toUser) {
-        // todo　在IllegalAccessException回复参数错误信息
         String[] cmd = StringUtils.split(msgContent, " ");
         log.debug("cmd: " + Arrays.toString(cmd));
-        String replyStr = null;
-        // 命令参数限制为1
-        if (cmd.length == 1) {
+        String replyStr;
+        // 命令参数限制为 <=2
+        if (cmd.length > 0) {
             try {
                 Method bot = commands.get(cmd[0]);
                 if (bot != null) {
-                    replyStr = bot.invoke(null).toString();
+                    int correctParaCount = bot.getParameterCount();
+                    if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 1)) {
+                        replyStr = bot.invoke(null).toString();
+                    } else if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 2)) {
+                        replyStr = bot.invoke(null, cmd[1]).toString();
+                    } else {
+                        replyStr = "[BOT WARN]\n" + "参数个数错误";
+                    }
+                } else {
+                    replyStr = "[BOT WARN]\n" + "命令错误";
                 }
             } catch (IllegalAccessException e) {
-                log.error(e.toString());
+                replyStr = "[BOT WARN]\n" + "命令错误";
+                e.printStackTrace();
             } catch (InvocationTargetException e) {
-                log.error(e.toString());
+                replyStr = "[BOT WARN]\n" + "命令错误";
+                e.printStackTrace();
             }
-        } else if (cmd.length == 2) {
-            // 命令参数限制为２
-            try {
-                Method bot = commands.get(cmd[0]);
-                if (bot != null) {
-                    replyStr = bot.invoke(null, cmd[1]).toString();
-                }
-            } catch (IllegalAccessException e) {
-                log.error(e.toString());
-            } catch (InvocationTargetException e) {
-                log.error(e.toString());
-            }
-        } else {
-            replyStr = "[ERROR] 命令错误";
+            //回复消息
+            sendMsgByUid(replyStr, toUser);
         }
-        //回复消息
-        sendMsgByUid(replyStr, toUser);
     }
 
     /**
