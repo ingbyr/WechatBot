@@ -23,10 +23,10 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public class WechatBot {
     // todo 终端日志颜色区分
-    private static Logger log = LoggerFactory.getLogger(WechatBot.class);
-    private static ObjectMapper mapper = new ObjectMapper();
-    private static final boolean DEBUG_FILE = false;
-    private static final boolean LOCAL_RUN = true;
+    private final Logger log = LoggerFactory.getLogger(WechatBot.class);
+    private final ObjectMapper mapper = new ObjectMapper();
+    private boolean debugFile = false;
+    private boolean serverRun = false;
 
     // 状态码
     private static final String SUCCESS = "200";
@@ -94,7 +94,7 @@ public class WechatBot {
         String imageUrl = System.getProperty("user.home") + "/WechatBotRun/qrcode.png";
         NetUtils.writeToFile(imageUrl, qrcodeDate);
         try {
-            if (LOCAL_RUN) {
+            if (!serverRun) {
                 //跨平台显示二维码图片
                 Desktop desktop = Desktop.getDesktop();
                 desktop.open(new File(imageUrl));
@@ -176,7 +176,7 @@ public class WechatBot {
         byte[] response = NetUtils.requestWithJsonForBytes(url, baseRequestContent);
 
         // 保存json数据到文件temp.json
-        if (DEBUG_FILE) {
+        if (debugFile) {
             String path = System.getProperty("user.dir") + "/WechatBotRun/init.json";
             NetUtils.writeToFile(path, response);
         }
@@ -217,7 +217,7 @@ public class WechatBot {
 
         try {
             byte[] response = NetUtils.requestWithJsonForBytes(url, "{}");
-            if (DEBUG_FILE) {
+            if (debugFile) {
                 String path = System.getProperty("user.dir") + "/WechatBotRun/contacts.json";
                 NetUtils.writeToFile(path, response);
             }
@@ -401,22 +401,11 @@ public class WechatBot {
             } else if (StringUtils.equals(msg.get("FromUserName").toString(), myAccount.get("UserName").toString())) {
                 // 自己给自己发送的消息
                 msgTypeId = 1;
-                String msgContent = msg.get("Content").toString();
-                if (StringUtils.startsWith(msgContent, "/")) {
-                    log.info("自己发的消息: " + msgContent);
-                    replyByBot(msgContent, msg.get("FromUserName").toString());
-                }
             } else if (isContact(msg.get("FromUserName").toString())) {
                 // 好友发送的消息
-                String msgContent = msg.get("Content").toString();
-                if (StringUtils.startsWith(msgContent, "/")) {
-                    String name = getNameByUidFromContact(msg.get("FromUserName").toString(), true);
-                    if (StringUtils.isNotEmpty(name)) {
-                        log.info("好友 " + name + ": " + msgContent);
-                        replyByBot(msgContent, msg.get("FromUserName").toString());
-                    }
-                }
+                msgTypeId = 4;
             }
+            handleMsgAll(msgTypeId, msg);
         }
     }
 
@@ -508,20 +497,25 @@ public class WechatBot {
         }
     }
 
-    /**
-     * 流程测试
-     *
-     * @param args
-     */
-    public static void main(String[] args) throws IOException, InterruptedException {
-        WechatBot bot = new WechatBot();
-        bot.getUuid();
-        bot.generateQrcode();
-        bot.waitForLogin();
-        bot.login();
-        bot.init();
-        bot.statusNotify();
-        bot.getContact();
-        bot.procMsg();
+    public void handleMsgAll(int msgType, Map<String, Object> msg) {
+    }
+
+    public void setDebugFile(boolean debugFile) {
+        this.debugFile = debugFile;
+    }
+
+    public void setServerRun(boolean serverRun) {
+        this.serverRun = serverRun;
+    }
+
+    public void run() throws IOException, InterruptedException {
+        getUuid();
+        generateQrcode();
+        waitForLogin();
+        login();
+        init();
+        statusNotify();
+        getContact();
+        procMsg();
     }
 }
