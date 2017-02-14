@@ -43,7 +43,7 @@ public class BotUtils {
             ussData.put("deviceID", deviceID);
             return ussData;
         } catch (DocumentException e) {
-            log.error(e.toString());
+            e.printStackTrace();
         }
         return null;
     }

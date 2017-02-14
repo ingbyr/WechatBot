@@ -26,7 +26,7 @@ public class WechatBot {
     private static Logger log = LoggerFactory.getLogger(WechatBot.class);
     private static ObjectMapper mapper = new ObjectMapper();
     private static final boolean DEBUG_FILE = false;
-    private static final boolean LOCAL_RUN = false;
+    private static final boolean LOCAL_RUN = true;
 
     // 状态码
     private static final String SUCCESS = "200";
@@ -258,7 +258,7 @@ public class WechatBot {
         } catch (Exception e) {
             isBigContact = true;
             log.info("联系人数量过多，尝试重新获取中");
-            log.error(e.toString());
+            e.printStackTrace();
         }
     }
 
@@ -317,7 +317,7 @@ public class WechatBot {
             log.trace("sync response: \n" + response);
             return dataMap;
         } catch (IOException e) {
-            log.error(e.toString());
+            e.printStackTrace();
             return null;
         }
     }
@@ -364,7 +364,7 @@ public class WechatBot {
                     Thread.sleep(5000);
                 }
             } catch (Exception e) {
-                log.error(e.toString());
+                e.printStackTrace();
             }
             checkTime = new Date().getTime() - checkTime;
             if (checkTime < 0.8) {

@@ -65,14 +65,14 @@ public class WeatherBot extends BaseBot {
             return sb.toString();
         } catch (IOException e) {
             log.error("weather bot 请求数据失败");
-            log.error(e.toString());
+            e.printStackTrace();
         } catch (DocumentException e) {
             e.printStackTrace();
         }
         return null;
     }
 
-    public static void main(String[] args){
+    public static void main(String[] args) {
         WeatherBot bot = new WeatherBot();
         System.out.println(bot.start("北京"));
     }

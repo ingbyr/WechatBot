@@ -50,7 +50,7 @@ public class NetUtils {
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             return responseBody.string();
         }catch (Exception e){
-            log.error(e.toString());
+            e.printStackTrace();
         }
         return null;
     }
@@ -63,7 +63,7 @@ public class NetUtils {
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             return responseBody.bytes();
         }catch (Exception e){
-            log.error(e.toString());
+            e.printStackTrace();
         }
         return null;
     }
@@ -79,7 +79,7 @@ public class NetUtils {
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             return responseBody.string();
         } catch (Exception e) {
-            log.error(e.toString());
+            e.printStackTrace();
         }
         return null;
 
@@ -98,7 +98,7 @@ public class NetUtils {
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             return responseBody.bytes();
         } catch (Exception e) {
-            log.error(e.toString());
+            e.printStackTrace();
         }
         return null;
     }
