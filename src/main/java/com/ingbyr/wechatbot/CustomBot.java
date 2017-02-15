@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
 
 /**
@@ -26,6 +28,13 @@ public class CustomBot extends WechatBot {
             // 自己发送给自己的消息
             log.info("自己发的消息: " + msgContent);
             replyByBot(msgContent, msg.get("FromUserName").toString());
+            String imageUrl = System.getProperty("user.home") + "/WechatBotRun/alian.png";
+            Path path = Paths.get(imageUrl);
+            try {
+                uploadMedia(path, true);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         } else if (msgType == 4) {
             // 好友私聊的信息
             if (StringUtils.startsWith(msgContent, "/")) {

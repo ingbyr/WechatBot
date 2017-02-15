@@ -16,7 +16,7 @@
         <!-- 过滤器，一个appender可以有多个 -->
         <!-- 阈值过滤，就是log行为级别过滤，debug及debug以上的信息会被打印出来 -->
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-            <level>info</level>
+            <level>debug</level>
         </filter>
 
         <encoder>

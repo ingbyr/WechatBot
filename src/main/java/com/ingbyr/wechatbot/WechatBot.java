@@ -11,6 +11,8 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -49,6 +51,9 @@ public class WechatBot {
     private String syncKeyStr = "";
     private String syncHost = "";
     private boolean isBigContact = false;
+
+    // 媒体文件
+    private int fileIndex = 0;
 
     private Map<String, String> initData = new HashMap<>();
     private Map<String, String> baseRequest = new HashMap<>();
@@ -249,7 +254,7 @@ public class WechatBot {
                     log.debug("群聊: " + contact.get("NickName"));
                 } else if (StringUtils.equals(contact.get("UserName").toString(), myAccount.get("UserName").toString())) {
                     // 自己
-                    log.debug("欢迎:　" + contact.get("NickName"));
+                    log.info("欢迎:　" + contact.get("NickName"));
                 } else {
                     contactList.add(contact);
                     log.debug("好友: " + contact.get("NickName"));
@@ -463,7 +468,48 @@ public class WechatBot {
         }
     }
 
-    // todo 发送图片
+    public void uploadMedia(Path filePath, boolean isImage) throws IOException {
+        if (!Files.exists(filePath)) {
+            log.error("File not exists");
+            return;
+        }
+        // 共两个上传服务器
+        String url1 = "https://file." + baseHost + "/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json";
+        String url2 = "https://file2." + baseHost + "/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json";
+        String id = "WU_FILE_" + fileIndex;
+        String mediaType;
+
+        // 判断是图片还是文件
+        if (isImage)
+            mediaType = "pic";
+        else
+            mediaType = "doc";
+
+        Map<String, Object> requestContent = new HashMap<>();
+        requestContent.put("BaseRequest", baseRequest);
+        requestContent.put("ClientMediaId", new Date().getTime());
+        requestContent.put("TotalLen", Files.size(filePath));
+        requestContent.put("StartPos", 0);
+        requestContent.put("DataLen", Files.size(filePath));
+        requestContent.put("MediaType", 4);
+        String passTicket = initData.get("pass_ticket");
+        fileIndex++;
+
+        String res = NetUtils.postImage(id, url1, new File(filePath.toString()), mediaType, requestContent, passTicket);
+        log.debug("res(url1): " + res);
+        Map response = mapper.readValue(res, Map.class);
+
+        if (((int) ((Map) response.get("BaseResponse")).get("Ret")) != 0) {
+            res = NetUtils.postImage(id, url2, new File(filePath.toString()), mediaType, requestContent, passTicket);
+            response = mapper.readValue(res, Map.class);
+            log.debug("res(url2): " + res);
+        }
+
+        if (((int) ((Map) response.get("BaseResponse")).get("Ret")) != 0) {
+            log.error("Upload media failure");
+        }
+
+    }
 
     public void replyByBot(String msgContent, String toUser) {
         String[] cmd = StringUtils.split(msgContent, " ");

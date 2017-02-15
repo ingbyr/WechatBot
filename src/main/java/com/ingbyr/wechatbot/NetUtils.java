@@ -1,11 +1,17 @@
 package com.ingbyr.wechatbot;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.*;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 public class NetUtils {
     private static final Logger log = LoggerFactory.getLogger(NetUtils.class);
     private static List<Cookie> localCookie = new ArrayList<>();
+    private static final ObjectMapper mapper = new ObjectMapper();
 
     private static final OkHttpClient client = new OkHttpClient.Builder()
             .connectTimeout(60, TimeUnit.SECONDS)
@@ -31,6 +38,7 @@ public class NetUtils {
                 @Override
                 public void saveFromResponse(HttpUrl httpUrl, List<Cookie> list) {
                     localCookie = list;
+                    log.debug("cookies: " + list);
                 }
 
                 @Override
@@ -49,7 +57,7 @@ public class NetUtils {
                 .build();
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             return responseBody.string();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
@@ -62,7 +70,7 @@ public class NetUtils {
                 .build();
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             return responseBody.bytes();
-        }catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
@@ -97,6 +105,51 @@ public class NetUtils {
                 .build();
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             return responseBody.bytes();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static String postImage(String id, String url, File file,
+                                   String mediatype, Map<String, Object> uploadMediaRequest,
+                                   String passTicket) throws IOException {
+
+        log.debug("local cookies: " + localCookie.toString());
+        String webwxDataTicket = StringUtils.substringBetween(localCookie.toString(), "webwx_data_ticket=", "; expires");
+        if (StringUtils.isBlank(webwxDataTicket)) {
+            log.error("No webwx_data_ticket in cookies");
+            return null;
+        }
+
+        String type = Files.probeContentType(file.toPath());
+
+        RequestBody requestBody = new MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("id", id)
+                .addFormDataPart("name", file.getName())
+                .addFormDataPart("type", type)
+                .addFormDataPart("lastModifiedDate", LocalDate.now().getMonthValue()
+                        + "/" + LocalDate.now().getDayOfMonth()
+                        + "/" + LocalDate.now().getYear()
+                        + ", " + LocalTime.now().withNano(0)
+                        + " GMT+0800 (CST)")
+                .addFormDataPart("size", String.valueOf(Files.size(file.toPath())))
+                .addFormDataPart("mediatype", mediatype)
+                .addFormDataPart("uploadmediarequest", mapper.writeValueAsString(uploadMediaRequest))
+                .addFormDataPart("webwx_data_ticket", webwxDataTicket)
+                .addFormDataPart("pass_ticket", passTicket)
+                .addFormDataPart("filename", file.getName(), RequestBody.create(MediaType.parse(type), file))
+                .build();
+
+        Request request = new Request.Builder()
+                .addHeader(USER_AGENT, USER_AGENT_CONTENT)
+                .url(url)
+                .post(requestBody)
+                .build();
+
+        try (ResponseBody responseBody = client.newCall(request).execute().body()) {
+            return responseBody.string();
         } catch (Exception e) {
             e.printStackTrace();
         }
