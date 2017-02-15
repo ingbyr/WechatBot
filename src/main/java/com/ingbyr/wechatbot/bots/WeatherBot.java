@@ -72,8 +72,8 @@ public class WeatherBot extends BaseBot {
         return null;
     }
 
-    public static void main(String[] args) {
-        WeatherBot bot = new WeatherBot();
-        System.out.println(bot.start("北京"));
-    }
+//    public static void main(String[] args) {
+//        WeatherBot bot = new WeatherBot();
+//        System.out.println(bot.start("北京"));
+//    }
 }

@@ -4,9 +4,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 
 /**
@@ -26,19 +23,14 @@ public class CustomBot extends WechatBot {
 
         if (msgType == 1 && StringUtils.startsWith(msgContent, "/")) {
             // 自己发送给自己的消息
-            log.info("自己发的消息: " + msgContent);
+            log.info("自己发来的消息: " + msgContent);
             replyByBot(msgContent, msg.get("FromUserName").toString());
-            String imageUrl = System.getProperty("user.home") + "/WechatBotRun/alian.png";
-            Path path = Paths.get(imageUrl);
-            if (sendImgMsgByUid(path, msg.get("FromUserName").toString())){
-                log.info("发送图片成功");
-            }
         } else if (msgType == 4) {
             // 好友私聊的信息
             if (StringUtils.startsWith(msgContent, "/")) {
                 String name = getNameByUidFromContact(msg.get("FromUserName").toString(), true);
                 if (StringUtils.isNotEmpty(name)) {
-                    log.info("好友 " + name + ": " + msgContent);
+                    log.info("好友 " + name + "发来的消息: " + msgContent);
                     replyByBot(msgContent, msg.get("FromUserName").toString());
                 }
             }
@@ -51,9 +43,7 @@ public class CustomBot extends WechatBot {
         bot.setServerRun(false);
         try {
             bot.run();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

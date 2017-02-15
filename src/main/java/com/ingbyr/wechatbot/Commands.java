@@ -2,6 +2,7 @@ package com.ingbyr.wechatbot;
 
 import com.ingbyr.wechatbot.annotation.BotCommand;
 import com.ingbyr.wechatbot.annotation.BotHelper;
+import com.ingbyr.wechatbot.bots.AlienAvatarBot;
 import com.ingbyr.wechatbot.bots.WeatherBot;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -28,8 +29,14 @@ public class Commands {
         } else {
             data = logo + data;
         }
-        log.info("回复信息: " + data);
         return data;
+    }
+
+    @BotCommand("/头像")
+    @BotHelper("随机获取头像: /头像 [任意文字]")
+    public static String alianAvatar(String name) {
+        AlienAvatarBot bot = new AlienAvatarBot();
+        return bot.start(name);
     }
 
     @BotCommand("/帮助")

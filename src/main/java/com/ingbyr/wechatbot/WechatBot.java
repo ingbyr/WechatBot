@@ -13,6 +13,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -455,7 +456,7 @@ public class WechatBot {
         params.put("Msg", msg);
 
 
-        String paramsContent = null;
+        String paramsContent;
         try {
             paramsContent = mapper.writeValueAsString(params);
             String response = NetUtils.requestWithJson(url, paramsContent);
@@ -469,6 +470,7 @@ public class WechatBot {
     }
 
     public String uploadMedia(Path filePath, boolean isImage) throws IOException {
+        log.debug("filePath: ", filePath.toString());
         if (!Files.exists(filePath)) {
             log.error("File not exists");
             return null;
@@ -585,8 +587,16 @@ public class WechatBot {
                 replyStr = "[BOT WARN]\n" + "命令错误";
                 e.printStackTrace();
             }
+
             //回复消息
-            sendMsgByUid(replyStr, toUser);
+            log.info("BOT回复消息: " + replyStr);
+            if (StringUtils.startsWith(replyStr, "/")) {
+                // 发送文件
+                sendImgMsgByUid(Paths.get(replyStr), toUser);
+            } else {
+                // 发送文字消息
+                sendMsgByUid(replyStr, toUser);
+            }
         }
     }
 
