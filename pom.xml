@@ -18,7 +18,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>com.ingbyr.wechatbot.WechatBot</mainClass>
+                            <mainClass>com.ingbyr.wechatbot.CustomBot</mainClass>
                         </manifest>
                     </archive>
                 </configuration>
