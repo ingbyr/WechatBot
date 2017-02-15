@@ -468,10 +468,10 @@ public class WechatBot {
         }
     }
 
-    public void uploadMedia(Path filePath, boolean isImage) throws IOException {
+    public String uploadMedia(Path filePath, boolean isImage) throws IOException {
         if (!Files.exists(filePath)) {
             log.error("File not exists");
-            return;
+            return null;
         }
         // 共两个上传服务器
         String url1 = "https://file." + baseHost + "/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json";
@@ -509,6 +509,53 @@ public class WechatBot {
             log.error("Upload media failure");
         }
 
+        // 获得文件标志
+        String mediaId = response.get("MediaId").toString();
+        log.debug("MediaId" + mediaId);
+        return mediaId;
+    }
+
+    public boolean sendImgMsgByUid(Path imagePath, String uid) {
+        try {
+            String mid = uploadMedia(imagePath, true);
+            if (StringUtils.isBlank(mid)) {
+                return false;
+            }
+            String url = baseUrl + "/webwxsendmsgimg?fun=async&f=json";
+
+            Map<String, Object> msg = new HashMap<>();
+            msg.put("Type", 3);
+            msg.put("MediaId", mid);
+            msg.put("FromUserName", myAccount.get("UserName").toString());
+            msg.put("ToUserName", uid);
+            msg.put("LocalID", new Date().getTime());
+            msg.put("ClientMsgId", new Date().getTime());
+            if (imagePath.endsWith("gif")) {
+                url = baseUrl + "/webwxsendemoticon?fun=sys";
+                msg.put("Type", 47);
+                msg.put("EmojiFlag", 2);
+            }
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("BaseRequest", baseRequest);
+            data.put("Msg", msg);
+
+            String response = NetUtils.requestWithJson(url, mapper.writeValueAsString(data));
+            log.debug("response: " + response);
+            Map res = mapper.readValue(response, Map.class);
+            if ((int) ((Map) res.get("BaseResponse")).get("Ret") == 0) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public void sendFileMsgByUid() {
+        // todo 发送任意格式文件
     }
 
     public void replyByBot(String msgContent, String toUser) {

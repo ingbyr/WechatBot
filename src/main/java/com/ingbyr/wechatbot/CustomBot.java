@@ -30,10 +30,8 @@ public class CustomBot extends WechatBot {
             replyByBot(msgContent, msg.get("FromUserName").toString());
             String imageUrl = System.getProperty("user.home") + "/WechatBotRun/alian.png";
             Path path = Paths.get(imageUrl);
-            try {
-                uploadMedia(path, true);
-            } catch (IOException e) {
-                e.printStackTrace();
+            if (sendImgMsgByUid(path, msg.get("FromUserName").toString())){
+                log.info("发送图片成功");
             }
         } else if (msgType == 4) {
             // 好友私聊的信息
