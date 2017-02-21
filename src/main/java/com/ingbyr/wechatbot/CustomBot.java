@@ -1,9 +1,14 @@
 package com.ingbyr.wechatbot;
 
+import com.ingbyr.wechatbot.utils.DisplayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -14,6 +19,46 @@ import java.util.Map;
  */
 public class CustomBot extends WechatBot {
     private static Logger log = LoggerFactory.getLogger(CustomBot.class);
+
+    public void replyByBot(String msgContent, String toUser) {
+        String[] cmd = StringUtils.split(msgContent, " ");
+        log.debug("cmd: " + Arrays.toString(cmd));
+        String replyStr;
+        // 命令参数限制为 <=2
+        if (cmd.length > 0) {
+            try {
+                Method bot = commands.get(cmd[0]);
+                if (bot != null) {
+                    int correctParaCount = bot.getParameterCount();
+                    if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 1)) {
+                        replyStr = bot.invoke(null).toString();
+                    } else if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 2)) {
+                        replyStr = bot.invoke(null, cmd[1]).toString();
+                    } else {
+                        replyStr = DisplayUtils.BOT_ERROR + "参数个数错误";
+                    }
+                } else {
+                    replyStr = DisplayUtils.BOT_ERROR + "命令错误";
+                }
+            } catch (IllegalAccessException e) {
+                replyStr = DisplayUtils.BOT_ERROR + "命令错误";
+                e.printStackTrace();
+            } catch (InvocationTargetException e) {
+                replyStr = DisplayUtils.BOT_ERROR + "命令错误";
+                e.printStackTrace();
+            }
+
+            //回复消息
+            log.info("BOT回复消息: " + replyStr);
+            if (StringUtils.startsWith(replyStr, "/")) {
+                // 发送文件
+                sendImgMsgByUid(Paths.get(replyStr), toUser);
+            } else {
+                // 发送文字消息
+                sendMsgByUid(replyStr, toUser);
+            }
+        }
+    }
 
     @Override
     public void handleMsgAll(int msgType, Map<String, Object> msg) {

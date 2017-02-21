@@ -1,4 +1,4 @@
-package com.ingbyr.wechatbot;
+package com.ingbyr.wechatbot.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import okhttp3.*;
@@ -12,10 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -183,5 +180,14 @@ public class NetUtils {
             s = s.substring(0, s.lastIndexOf("&"));
         }
         return s;
+    }
+
+    public static String genSyncStr(List<HashMap<String, Integer>> keyValList) {
+        String syncKeyStr = "";
+        for (HashMap<String, Integer> keyVal : keyValList) {
+            syncKeyStr += keyVal.get("Key").toString() + "_" + keyVal.get("Val") + "|";
+        }
+        syncKeyStr = syncKeyStr.substring(0, syncKeyStr.length() - 1);
+        return syncKeyStr;
     }
 }

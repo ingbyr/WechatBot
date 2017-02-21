@@ -2,18 +2,22 @@ package com.ingbyr.wechatbot;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ingbyr.wechatbot.utils.DisplayUtils;
+import com.ingbyr.wechatbot.utils.NetUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -108,7 +112,7 @@ public class WechatBot {
         } finally {
             log.info("请扫描二维码登陆微信");
             log.info("二维码保存在　" + imageUrl);
-            BotUtils.displayQRCodeInConsole(imageUrl);
+            DisplayUtils.displayQRCodeInConsole(imageUrl);
         }
     }
 
@@ -158,7 +162,7 @@ public class WechatBot {
 
         String response = NetUtils.request(redirectUrl);
         log.trace("response: " + response);
-        initData = BotUtils.parseInitData(response);
+        initData = parseInitData(response);
 
         // 组装请求body
         baseRequest.put("Uin", initData.get("wxuin"));
@@ -194,7 +198,7 @@ public class WechatBot {
         log.debug("syncKey: " + syncKey);
 
         List<HashMap<String, Integer>> syncKeyList = (List<HashMap<String, Integer>>) syncKey.get("List");
-        syncKeyStr = BotUtils.genSyncStr(syncKeyList);
+        syncKeyStr = NetUtils.genSyncStr(syncKeyList);
 
         log.debug("syncKeyStr: " + syncKeyStr);
         log.debug("myAccount: " + myAccount);
@@ -317,7 +321,7 @@ public class WechatBot {
             if (ret == 0) {
                 syncKey = (Map<String, Object>) dataMap.get("SyncKey");
                 List<HashMap<String, Integer>> syncKeyList = (List<HashMap<String, Integer>>) ((Map<String, Object>) dataMap.get("SyncKey")).get("List");
-                syncKeyStr = BotUtils.genSyncStr(syncKeyList);
+                syncKeyStr = NetUtils.genSyncStr(syncKeyList);
                 log.trace("regenerate syncKeyStr: " + syncKeyStr);
             }
             log.trace("sync response: \n" + response);
@@ -560,46 +564,6 @@ public class WechatBot {
         // todo 发送任意格式文件
     }
 
-    public void replyByBot(String msgContent, String toUser) {
-        String[] cmd = StringUtils.split(msgContent, " ");
-        log.debug("cmd: " + Arrays.toString(cmd));
-        String replyStr;
-        // 命令参数限制为 <=2
-        if (cmd.length > 0) {
-            try {
-                Method bot = commands.get(cmd[0]);
-                if (bot != null) {
-                    int correctParaCount = bot.getParameterCount();
-                    if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 1)) {
-                        replyStr = bot.invoke(null).toString();
-                    } else if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 2)) {
-                        replyStr = bot.invoke(null, cmd[1]).toString();
-                    } else {
-                        replyStr = "[BOT WARN]\n" + "参数个数错误";
-                    }
-                } else {
-                    replyStr = "[BOT WARN]\n" + "命令错误";
-                }
-            } catch (IllegalAccessException e) {
-                replyStr = "[BOT WARN]\n" + "命令错误";
-                e.printStackTrace();
-            } catch (InvocationTargetException e) {
-                replyStr = "[BOT WARN]\n" + "命令错误";
-                e.printStackTrace();
-            }
-
-            //回复消息
-            log.info("BOT回复消息: " + replyStr);
-            if (StringUtils.startsWith(replyStr, "/")) {
-                // 发送文件
-                sendImgMsgByUid(Paths.get(replyStr), toUser);
-            } else {
-                // 发送文字消息
-                sendMsgByUid(replyStr, toUser);
-            }
-        }
-    }
-
     public void handleMsgAll(int msgType, Map<String, Object> msg) {
     }
 
@@ -609,6 +573,32 @@ public class WechatBot {
 
     public void setServerRun(boolean serverRun) {
         this.serverRun = serverRun;
+    }
+
+    public Map<String, String> parseInitData(String data) {
+        try {
+            Map<String, String> ussData = new HashMap<>();
+            Document document = DocumentHelper.parseText(data);
+            Element root = document.getRootElement();
+            Iterator iter = root.elementIterator();
+            while (iter.hasNext()) {
+                Element ele = (Element) iter.next();
+                log.debug("name:" + ele.getName() + " value:" + ele.getStringValue());
+                ussData.put(ele.getName(), ele.getStringValue());
+            }
+
+            //　随机device id
+            String deviceID = "e";
+            for (int i = 0; i < 3; i++) {
+                int randomNum = ThreadLocalRandom.current().nextInt(10000, 99999);
+                deviceID += randomNum;
+            }
+            ussData.put("deviceID", deviceID);
+            return ussData;
+        } catch (DocumentException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     public void run() throws IOException, InterruptedException {

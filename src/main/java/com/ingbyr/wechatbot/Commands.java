@@ -4,6 +4,7 @@ import com.ingbyr.wechatbot.annotation.BotCommand;
 import com.ingbyr.wechatbot.annotation.BotHelper;
 import com.ingbyr.wechatbot.bots.AlienAvatarBot;
 import com.ingbyr.wechatbot.bots.WeatherBot;
+import com.ingbyr.wechatbot.utils.DisplayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,7 +17,6 @@ import org.slf4j.LoggerFactory;
  */
 public class Commands {
     private static final Logger log = LoggerFactory.getLogger(Commands.class);
-    private static final String logo = "[BOT REPLY]\n";
 
     @BotCommand("/天气")
     @BotHelper("城市实时天气: /天气 [城市名称]")
@@ -25,9 +25,9 @@ public class Commands {
         String data = weatherBot.start(city);
 
         if (StringUtils.isBlank(data)) {
-            data = logo + "暂无此城市天气信息";
+            data = DisplayUtils.BOT_REPLY + "暂无此城市天气信息";
         } else {
-            data = logo + data;
+            data = DisplayUtils.BOT_REPLY + data;
         }
         return data;
     }

@@ -2,6 +2,7 @@ package com.ingbyr.wechatbot;
 
 import com.ingbyr.wechatbot.annotation.BotCommand;
 import com.ingbyr.wechatbot.annotation.BotHelper;
+import com.ingbyr.wechatbot.utils.DisplayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,7 @@ public class LoadCommands {
         Class c = cmd.getClass();
         Method[] methods = c.getDeclaredMethods();
         StringBuilder helperBuilder = new StringBuilder();
-        helperBuilder.append("[BOT HELP]");
+        helperBuilder.append(DisplayUtils.BOT_HELP);
         for (Method method : methods) {
             BotCommand bcmd = method.getAnnotation(BotCommand.class);
             log.info("启动 " + method.getName());
