@@ -30,9 +30,20 @@ public class CustomBot extends WechatBot {
                 Method bot = commands.get(cmd[0]);
                 if (bot != null) {
                     int correctParaCount = bot.getParameterCount();
+
                     if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 1)) {
-                        replyStr = bot.invoke(null).toString();
-                        sendMsg(replyStr, toUser);
+                        new Thread(() -> {
+                            try {
+                                log.debug(Thread.currentThread().getName());
+                                String rs = bot.invoke(null).toString();
+                                sendMsg(rs, toUser);
+                            } catch (IllegalAccessException e) {
+                                e.printStackTrace();
+                            } catch (InvocationTargetException e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
+
                     } else if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 2)) {
                         new Thread(() -> {
                             try {
