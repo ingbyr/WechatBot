@@ -8,17 +8,7 @@ package com.ingbyr.wechatbot.bots;
  */
 public class GithubBot extends BaseBot {
     @Override
-    public void initUrl(String arg) {
-
-    }
-
-    @Override
-    public void initRequset() {
-
-    }
-
-    @Override
-    public String doRequest() {
+    public String requestData() {
         return null;
     }
 }

@@ -19,25 +19,12 @@ import java.util.Iterator;
  */
 public class WeatherBot extends BaseBot {
 
-    public WeatherBot() {
+    public WeatherBot(Request request) {
+        this.request = request;
     }
 
     @Override
-    public void initUrl(String arg) {
-        baseUrl = "http://wthrcdn.etouch.cn/WeatherApi?city=";
-        url = baseUrl + arg;
-    }
-
-    @Override
-    public void initRequset() {
-        request = new Request.Builder()
-                .addHeader(USER_AGENT, USER_AGENT_CONTENT)
-                .url(url)
-                .build();
-    }
-
-    @Override
-    public String doRequest() {
+    public String requestData() {
         try (ResponseBody responseBody = client.newCall(request).execute().body()) {
             Document document = DocumentHelper.parseText(responseBody.string());
             Element root = document.getRootElement();
@@ -72,8 +59,31 @@ public class WeatherBot extends BaseBot {
         return null;
     }
 
-//    public static void main(String[] args) {
-//        WeatherBot bot = new WeatherBot();
-//        System.out.println(bot.start("北京"));
-//    }
+    public static class Builder extends BaseBuilder {
+
+        public Builder() {
+            baseUrl = "http://wthrcdn.etouch.cn/WeatherApi?city=";
+        }
+
+        @Override
+        public BaseBuilder setArgs(String args) {
+            this.args = args;
+            url = baseUrl + this.args;
+            return this;
+        }
+
+        @Override
+        public BaseBuilder initRequest() {
+            request = new Request.Builder()
+                    .addHeader(USER_AGENT, USER_AGENT_CONTENT)
+                    .url(url)
+                    .build();
+            return this;
+        }
+
+        @Override
+        public BaseBot build() {
+            return new WeatherBot(request);
+        }
+    }
 }

@@ -21,8 +21,11 @@ public class Commands {
     @BotCommand("/天气")
     @BotHelper("城市实时天气: /天气 [城市名称]")
     public static String currentWeather(String city) {
-        WeatherBot weatherBot = new WeatherBot();
-        String data = weatherBot.start(city);
+        WeatherBot bot = (WeatherBot) new WeatherBot.Builder()
+                .setArgs(city)
+                .initRequest()
+                .build();
+        String data = bot.requestData();
 
         if (StringUtils.isBlank(data)) {
             data = DisplayUtils.BOT_REPLY + "暂无此城市天气信息";
@@ -35,8 +38,11 @@ public class Commands {
     @BotCommand("/头像")
     @BotHelper("随机获取头像: /头像 [任意文字]")
     public static String alianAvatar(String name) {
-        AlienAvatarBot bot = new AlienAvatarBot();
-        return bot.start(name);
+        AlienAvatarBot bot = (AlienAvatarBot) new AlienAvatarBot.Builder()
+                .setArgs(name)
+                .initRequest()
+                .build();
+        return bot.requestData();
     }
 
     @BotCommand("/帮助")
@@ -48,10 +54,11 @@ public class Commands {
     /**
      * 测试
      * 注意编译时要注释，否则反射会报错
+     *
      * @param args
      */
 //    public static void main(String[] args) {
-//        currentTime();
-//        currentWeather("北京");
+////        System.out.println(currentWeather("北京"));
+////        System.out.println(alianAvatar("ingbyr"));
 //    }
 }
