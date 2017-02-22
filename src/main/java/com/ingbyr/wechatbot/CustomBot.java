@@ -32,31 +32,41 @@ public class CustomBot extends WechatBot {
                     int correctParaCount = bot.getParameterCount();
                     if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 1)) {
                         replyStr = bot.invoke(null).toString();
+                        sendMsg(replyStr, toUser);
                     } else if ((cmd.length == (correctParaCount + 1)) && (cmd.length == 2)) {
-                        replyStr = bot.invoke(null, cmd[1]).toString();
+                        new Thread(() -> {
+                            try {
+                                log.debug(Thread.currentThread().getName());
+                                String rs = bot.invoke(null, cmd[1]).toString();
+                                sendMsg(rs, toUser);
+                            } catch (IllegalAccessException e) {
+                                e.printStackTrace();
+                            } catch (InvocationTargetException e) {
+                                e.printStackTrace();
+                            }
+                        }).start();
                     } else {
                         replyStr = DisplayUtils.BOT_ERROR + "参数个数错误";
+                        sendMsg(replyStr, toUser);
                     }
                 } else {
                     replyStr = DisplayUtils.BOT_ERROR + "命令错误";
+                    sendMsg(replyStr, toUser);
                 }
-            } catch (IllegalAccessException e) {
-                replyStr = DisplayUtils.BOT_ERROR + "命令错误";
-                e.printStackTrace();
-            } catch (InvocationTargetException e) {
-                replyStr = DisplayUtils.BOT_ERROR + "命令错误";
+            } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+    }
 
-            //回复消息
-            log.info("BOT回复消息: " + replyStr);
-            if (StringUtils.startsWith(replyStr, "/")) {
-                // 发送文件
-                sendImgMsgByUid(Paths.get(replyStr), toUser);
-            } else {
-                // 发送文字消息
-                sendMsgByUid(replyStr, toUser);
-            }
+    public void sendMsg(String replyStr, String toUser) {
+        log.info("BOT回复消息: " + replyStr);
+        if (StringUtils.startsWith(replyStr, "/")) {
+            // 发送文件
+            sendImgMsgByUid(Paths.get(replyStr), toUser);
+        } else {
+            // 发送文字消息
+            sendMsgByUid(replyStr, toUser);
         }
     }
 

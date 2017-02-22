@@ -23,8 +23,7 @@ public class LoadCommands {
     private static String helper = null;
 
     public static void init() {
-        Commands cmd = new Commands();
-        Class c = cmd.getClass();
+        Class c = Commands.class;
         Method[] methods = c.getDeclaredMethods();
         StringBuilder helperBuilder = new StringBuilder();
         helperBuilder.append(DisplayUtils.BOT_HELP);
@@ -53,8 +52,22 @@ public class LoadCommands {
      */
     public static void main(String[] args) throws InvocationTargetException, IllegalAccessException {
         init();
-        // 动态调用静态方法测试
-//        commands.get("/天气").invoke(null, "北京");
-        System.out.print(getHelper());
+//        String[] c = {"广州", "北京", "上海"};
+//        for (String s : c) {
+//            new Thread(() -> {
+//                try {
+//                    log.debug(Thread.currentThread().getName());
+//                    System.out.print(commands.get("/天气").invoke(null, s));
+//                } catch (IllegalAccessException e) {
+//                    e.printStackTrace();
+//                } catch (InvocationTargetException e) {
+//                    e.printStackTrace();
+//                }
+//
+//            }).start();
+//        }
+
+//        System.out.print(commands.get("/天气").invoke(null, "北京"));
+//        System.out.print(getHelper());
     }
 }
