@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -101,7 +102,7 @@ public class WechatBot {
         qrcodeUrl += uuid;
         log.trace("qrcode url: " + qrcodeUrl);
         byte[] qrcodeDate = NetUtils.requestForBytes(qrcodeUrl);
-        String imageUrl = System.getProperty("user.home") + "/WechatBotRun/qrcode.png";
+        String imageUrl = System.getProperty("user.home") + File.separator + "WechatBotRun" + File.separator + "qrcode.png";
         NetUtils.writeToFile(imageUrl, qrcodeDate);
         try {
             if (!serverRun) {

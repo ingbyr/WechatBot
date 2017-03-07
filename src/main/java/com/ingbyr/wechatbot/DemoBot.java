@@ -17,8 +17,8 @@ import java.util.Map;
  * @author ing
  * @version 1
  */
-public class CustomBot extends WechatBot {
-    private static Logger log = LoggerFactory.getLogger(CustomBot.class);
+public class DemoBot extends WechatBot {
+    private static Logger log = LoggerFactory.getLogger(DemoBot.class);
 
     public void replyByBot(String msgContent, String toUser) {
         String[] cmd = StringUtils.split(msgContent, " ");
@@ -104,7 +104,7 @@ public class CustomBot extends WechatBot {
     }
 
     public static void main(String[] args) {
-        CustomBot bot = new CustomBot();
+        DemoBot bot = new DemoBot();
         bot.setDebugFile(false);
         bot.setServerRun(false);
         try {

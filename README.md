@@ -10,6 +10,13 @@
 - [ ] 群消息
     - [ ] 回复文字消息
     - [ ] 回复图片消息
+    
+## 使用
+新类继承WechatBot，然后重写方法，
+```java
+public void handleMsgAll(int msgType, Map<String, Object> msg)
+```
+其他详细内容可以参考DemoBot类。
 
 ## 已完成BOT命令:
 
