@@ -338,12 +338,6 @@ public class WechatBot {
         String[] status;
         long checkTime;
         log.info("Wechat Bot 启动完成");
-        // 加载其他命令和相关bot
-        log.info("Other Bots 正在启动");
-        LoadCommands.init();
-        help = LoadCommands.getHelper();
-        log.info("Other Bots 启动完成");
-        commands = LoadCommands.getCommands();
         while (true) {
             checkTime = new Date().getTime();
             try {
