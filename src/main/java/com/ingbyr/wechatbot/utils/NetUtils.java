@@ -153,12 +153,6 @@ public class NetUtils {
         return null;
     }
 
-    public static void writeToFile(String path, byte[] data) throws IOException {
-        try (FileOutputStream fos = new FileOutputStream(path)) {
-            fos.write(data);
-        }
-    }
-
     public static String getUrlParamsByMap(Map<String, Object> map,
                                            boolean isSort) {
         if (map == null) {

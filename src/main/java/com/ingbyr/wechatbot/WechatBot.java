@@ -15,34 +15,39 @@ import org.slf4j.LoggerFactory;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Created on 17-2-6.
  *
  * @author ing
- * @version 1
+ * @version 1.0
  */
-public class WechatBot {
+final public class WechatBot implements Runnable {
     // todo 终端日志颜色区分
     private final Logger log = LoggerFactory.getLogger(WechatBot.class);
     private final ObjectMapper mapper = new ObjectMapper();
+
+    // bot参数
     private boolean debugFile = false;
     private boolean serverRun = false;
+    private int msgCached = 5;
+    private int msgFrequency = 100;
+    private BlockingQueue msgQueue = new ArrayBlockingQueue<Map<String, String>>(msgCached);
+    private Path dir = Paths.get(".", "RunTime");
 
     // 状态码
     private static final String SUCCESS = "200";
     private static final String SCANED = "201";
     private static final String TIMEOUT = "408";
 
-    // 其他bot
-    public static Map<String, Method> commands = new HashMap<>();
     // 帮助消息
     public static String help = "";
 
@@ -84,9 +89,15 @@ public class WechatBot {
         this.qrcodeUrl = "https://login.weixin.qq.com/qrcode/";
         this.baseUrl = "https://wx.qq.com/cgi-bin/mmwebwx-bin";
         this.baseHost = "wx.qq.com";
+
+        if (!dir.toFile().exists()) try {
+            Files.createDirectory(dir);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    public void getUuid() throws IOException {
+    public WechatBot getUuid() throws IOException {
         loginUrl = loginUrl + new Date().getTime();
         log.trace("loginUrl: " + loginUrl);
         String response = NetUtils.request(loginUrl);
@@ -96,28 +107,30 @@ public class WechatBot {
 
         log.debug("window.QRLogin.code = " + code);
         log.debug("window.QRLogin.uuid = " + uuid);
+        return this;
     }
 
-    public void generateQrcode() throws IOException {
+    public WechatBot generateQrcode() throws IOException {
         qrcodeUrl += uuid;
         log.trace("qrcode url: " + qrcodeUrl);
         byte[] qrcodeDate = NetUtils.requestForBytes(qrcodeUrl);
-        String imageUrl = System.getProperty("user.home") + File.separator + "WechatBotRun" + File.separator + "qrcode.png";
-        NetUtils.writeToFile(imageUrl, qrcodeDate);
+        Path imageUrl = Paths.get(".", "RunTime", "qrcode.png");
+        Files.write(imageUrl, qrcodeDate);
         try {
             if (!serverRun) {
                 //跨平台显示二维码图片
                 Desktop desktop = Desktop.getDesktop();
-                desktop.open(new File(imageUrl));
+                desktop.open(imageUrl.toFile());
             }
         } finally {
             log.info("请扫描二维码登陆微信");
             log.info("二维码保存在　" + imageUrl);
             DisplayUtils.displayQRCodeInConsole(imageUrl);
         }
+        return this;
     }
 
-    public void waitForLogin() throws IOException, InterruptedException {
+    public WechatBot waitForLogin() throws IOException, InterruptedException {
         String url = StringUtils.join("https://login.weixin.qq.com/cgi-bin/mmwebwx-bin/login?uuid=", uuid, "&tip=1&_=", new Date().getTime());
         log.trace("login url: " + url);
         while (true) {
@@ -151,9 +164,10 @@ public class WechatBot {
             //　轮询时间　1s
             Thread.sleep(1000);
         }
+        return this;
     }
 
-    public void login() throws IOException {
+    public WechatBot login() throws IOException {
         if (redirectUrl.length() < 4) {
             log.info("登陆失败");
             System.exit(-1);
@@ -177,9 +191,10 @@ public class WechatBot {
 
         // 转换为json格式
         baseRequestContent = mapper.writeValueAsString(tempData);
+        return this;
     }
 
-    public void init() throws IOException {
+    public WechatBot init() throws IOException {
         String url = baseUrl + "/webwxinit?r=" + (new Date().getTime()) + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
         log.trace("url: " + url);
         log.debug("baseRequestContent " + baseRequestContent);
@@ -188,8 +203,7 @@ public class WechatBot {
 
         // 保存json数据到文件temp.json
         if (debugFile) {
-            String path = System.getProperty("user.dir") + "/WechatBotRun/init.json";
-            NetUtils.writeToFile(path, response);
+            Files.write(Paths.get(dir.toString(), "init.json"), response);
         }
 
         Map map = mapper.readValue(response, Map.class);
@@ -203,9 +217,10 @@ public class WechatBot {
 
         log.debug("syncKeyStr: " + syncKeyStr);
         log.debug("myAccount: " + myAccount);
+        return this;
     }
 
-    public void statusNotify() throws IOException {
+    public WechatBot statusNotify() throws IOException {
         String url = baseUrl + "/webwxstatusnotify?lang=zh_CN&pass_ticket=" + initData.get("pass_ticket");
         Map<String, Object> tempData = new HashMap<>();
         tempData.put("BaseRequest", baseRequest);
@@ -214,12 +229,14 @@ public class WechatBot {
         tempData.put("ToUserName", myAccount.get("UserName"));
         tempData.put("ClientMsgId", new Date().getTime());
         NetUtils.requestWithJson(url, mapper.writeValueAsString(tempData));
+        return this;
     }
 
-    public void getContact() throws IOException {
+    public WechatBot getContact() throws Exception {
         // todo 如果通讯录联系人过多，这里会直接获取失败
-        if (isBigContact)
-            return;
+        if (isBigContact) {
+            throw new Exception("Need fixed: big contact");
+        }
 
         String url = baseUrl + "/webwxgetcontact?pass_ticket=" + initData.get("pass_ticket")
                 + "&skey=" + initData.get("skey") + "&r=" + new Date().getTime();
@@ -229,8 +246,7 @@ public class WechatBot {
         try {
             byte[] response = NetUtils.requestWithJsonForBytes(url, "{}");
             if (debugFile) {
-                String path = System.getProperty("user.dir") + "/WechatBotRun/contacts.json";
-                NetUtils.writeToFile(path, response);
+                Files.write(Paths.get(dir.toString(), "contacts.json"), response);
             }
 
             Map map = mapper.readValue(response, Map.class);
@@ -271,9 +287,11 @@ public class WechatBot {
             log.info("联系人数量过多，尝试重新获取中");
             e.printStackTrace();
         }
+
+        return this;
     }
 
-    public void testSyncCheck() throws IOException {
+    private void testSyncCheck() throws IOException {
 // webpush2 Failed to connect to webpush2.wx.qq.com/222.221.5.252:443
 //        String[] hosts = {"webpush.", "webpush2."};
 //        for (String host1 : hosts) {
@@ -285,7 +303,7 @@ public class WechatBot {
         syncCheck();
     }
 
-    public String[] syncCheck() throws IOException {
+    private String[] syncCheck() throws IOException {
         Map<String, Object> request = new HashMap<>();
         request.put("r", new Date().getTime());
         request.put("sid", initData.get("wxsid"));
@@ -305,7 +323,7 @@ public class WechatBot {
         return new String[]{retcode, selector};
     }
 
-    public Map sync() {
+    private Map sync() {
         String url = baseUrl + "/webwxsync?sid=" + initData.get("wxsid") + "&skey="
                 + initData.get("skey") + "&lang=en_US&pass_ticket=" + initData.get("pass_ticket");
         log.trace("url: " + url);
@@ -337,6 +355,7 @@ public class WechatBot {
         testSyncCheck();
         String[] status;
         long checkTime;
+        Map msg = new HashMap<String, String>();
         log.info("Wechat Bot 启动完成");
         while (true) {
             checkTime = new Date().getTime();
@@ -375,6 +394,18 @@ public class WechatBot {
             if (checkTime < 0.8) {
                 Thread.sleep(1 - checkTime);
             }
+
+            // 读取消息队列
+            log.debug("Read msg from queue, remainingCapacity: " + msgQueue.remainingCapacity());
+            msg = (Map) msgQueue.poll();
+            if (msg != null) {
+                for (Object k : msg.keySet()) {
+                    String v = (String) msg.get(k.toString());
+                    sendMsgByUid(v, k.toString());
+                }
+            } else {
+                log.debug("get null msg");
+            }
         }
     }
 
@@ -395,7 +426,6 @@ public class WechatBot {
         if (map == null || map.isEmpty()) {
             return;
         }
-
         List<Map<String, Object>> msgList = (List<Map<String, Object>>) map.get("AddMsgList");
         int msgTypeId = -1;
 
@@ -414,7 +444,7 @@ public class WechatBot {
         }
     }
 
-    public boolean isContact(String uid) {
+    private boolean isContact(String uid) {
         for (HashMap<String, Object> contact : contactList) {
             if (StringUtils.equals(uid, contact.get("UserName").toString())) {
                 return true;
@@ -423,7 +453,7 @@ public class WechatBot {
         return false;
     }
 
-    public String getNameByUidFromContact(String uid, boolean isRemarkName) {
+    private String getNameByUidFromContact(String uid, boolean isRemarkName) {
         for (HashMap<String, Object> contact : contactList) {
             if (StringUtils.equals(uid, contact.get("UserName").toString())) {
                 if (isRemarkName) {
@@ -436,7 +466,7 @@ public class WechatBot {
         return null;
     }
 
-    public void sendMsgByUid(String data, String dst) {
+    private void sendMsgByUid(String data, String dst) {
         String url = baseUrl + "/webwxsendmsg?pass_ticket=" + initData.get("pass_ticket");
         log.trace("url: " + url);
         Map params = new HashMap<String, Object>();
@@ -458,17 +488,18 @@ public class WechatBot {
         String paramsContent;
         try {
             paramsContent = mapper.writeValueAsString(params);
+            log.debug("send msg: " + paramsContent);
             String response = NetUtils.requestWithJson(url, paramsContent);
             log.trace("response: " + response);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         } catch (IOException e) {
-            log.error("bot 消息发送失败");
+            log.error("消息发送失败");
             e.printStackTrace();
         }
     }
 
-    public String uploadMedia(Path filePath, boolean isImage) throws IOException {
+    private String uploadMedia(Path filePath, boolean isImage) throws IOException {
         log.debug("filePath: ", filePath.toString());
         if (!Files.exists(filePath)) {
             log.error("File not exists");
@@ -560,6 +591,17 @@ public class WechatBot {
     }
 
     public void handleMsgAll(int msgType, Map<String, Object> msg) {
+        String msgContent = msg.get("Content").toString();
+        System.out.println("msgType: " + msgType);
+        System.out.println("msgContent: " + msgContent);
+        System.out.println("FromUserName: " + msg.get("FromUserName").toString());
+
+        if (msgType == 1 && msgContent.startsWith("/")) {
+            // 自己发送给自己的消息
+            System.out.println(("自己发来的消息: " + msgContent));
+            sendMsgByUid("Test Wechatbot", msg.get("FromUserName").toString());
+
+        }
     }
 
     public void setDebugFile(boolean debugFile) {
@@ -570,7 +612,11 @@ public class WechatBot {
         this.serverRun = serverRun;
     }
 
-    public Map<String, String> parseInitData(String data) {
+    public void setMsgFrequency(int msgFrequency) {
+        this.msgFrequency = msgFrequency;
+    }
+
+    private Map<String, String> parseInitData(String data) {
         try {
             Map<String, String> ussData = new HashMap<>();
             Document document = DocumentHelper.parseText(data);
@@ -596,14 +642,48 @@ public class WechatBot {
         return null;
     }
 
-    public void run() throws IOException, InterruptedException {
-        getUuid();
-        generateQrcode();
-        waitForLogin();
-        login();
-        init();
-        statusNotify();
-        getContact();
-        procMsg();
+    public void addMsgToQueue(String data, String dst) {
+        Map msg = new HashMap<String, String>();
+        msg.put(dst, data);
+        msgQueue.add(msg);
+    }
+
+    /**
+     * 调用顺序
+     * getUuid();
+     * generateQrcode();
+     * waitForLogin();
+     * login();
+     * init();
+     * statusNotify();
+     * getContact();
+     * procMsg();
+     */
+    @Override
+    public void run() {
+        try {
+            this.getUuid()
+                    .generateQrcode()
+                    .waitForLogin()
+                    .login()
+                    .init()
+                    .statusNotify()
+                    .getContact()
+                    .procMsg();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void main(String[] args) {
+        WechatBot w = new WechatBot();
+        new Thread(w).start();
+
+        Scanner scanner = new Scanner(System.in);
+        while (true) {
+            String data = scanner.nextLine();
+            String dst = scanner.nextLine();
+            w.addMsgToQueue(data, dst);
+        }
     }
 }

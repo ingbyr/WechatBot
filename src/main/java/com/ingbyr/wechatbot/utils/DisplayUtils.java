@@ -3,6 +3,8 @@ package com.ingbyr.wechatbot.utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
+
 /**
  * Created on 17-2-7.
  *
@@ -17,7 +19,7 @@ public class DisplayUtils {
     public static final String BOT_ERROR = "[BOT ERROR]\n";
     public static final String BOT_HELP = "[BOT HELP]\n";
 
-    public static void displayQRCodeInConsole(String PNGFileName) {
+    public static void displayQRCodeInConsole(Path PNGFileName) {
         // todo 终端显示二维码
     }
 }
